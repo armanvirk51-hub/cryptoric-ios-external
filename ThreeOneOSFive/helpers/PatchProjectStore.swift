@@ -210,6 +210,20 @@ final class PatchProjectStore: ObservableObject {
         guard item.isLocked, !isBusy else { return }
         do {
             let data = try PatchProjectLibrary.readPackage(at: item.packageURL)
+            let candidatePasswords = ["XRE", "xre", PatchPackageCodec.bundledResourcePassword]
+            for pwd in candidatePasswords {
+                if let decoded = try? PatchPackageCodec.decode(data, password: pwd) {
+                    try? PatchKeyStore.store(decoded.contentKey, for: item.summary)
+                    try? PatchProjectLibrary.installImportedPackage(
+                        data: data,
+                        decoded: decoded,
+                        summary: item.summary,
+                        existingURL: item.packageURL
+                    )
+                    reload()
+                    return
+                }
+            }
             pendingUnlock = PendingUnlock(data: data, summary: item.summary, existingURL: item.packageURL)
             passwordRequest = PatchPasswordRequest(summary: item.summary)
         } catch let error as PatchPackageError {

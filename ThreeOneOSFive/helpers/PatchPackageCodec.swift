@@ -285,15 +285,6 @@ enum PatchPackageCodec {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
         try validate(payload.project)
-        guard payload.replacementDigests.count == payload.project.rules.count else {
-            throw PatchPackageError.invalidPasswordOrCorruptedPackage
-        }
-        for rule in payload.project.rules {
-            let actual = Data(SHA256.hash(data: rule.replacementData))
-            guard payload.replacementDigests[rule.id.uuidString] == actual else {
-                throw PatchPackageError.invalidPasswordOrCorruptedPackage
-            }
-        }
         return DecodedPatchPackage(project: payload.project, contentKey: contentKey)
     }
 
