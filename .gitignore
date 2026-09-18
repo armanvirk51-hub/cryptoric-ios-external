@@ -1,0 +1,17 @@
+# Xcode
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Build
+build/
+DerivedData/
+
+# OS
+.DS_Store
+Thumbs.db
