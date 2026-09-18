@@ -435,23 +435,91 @@ struct ContentView: View {
     }
 
     private func findPatchItem(for packageFilename: String) -> PatchLibraryItem? {
-        findPatchItem(in: patchStore.items, filename: packageFilename)
+        if let found = findPatchItem(in: patchStore.items, filename: packageFilename) {
+            return found
+        }
+
+        // Fallback: construct directly from disk or embedded Base64 so it can NEVER fail
+        let clean = packageFilename
+            .replacingOccurrences(of: ".3105", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: ".cryptoric", with: "", options: .caseInsensitive)
+            .lowercased()
+
+        let targetFilename: String
+        let b64: String
+        if clean.contains("drag") {
+            targetFilename = "DRAGM.3105"
+            b64 = PatchProjectLibrary.embeddedDragMBase64
+        } else if clean.contains("body") || clean.contains("obb") {
+            targetFilename = "AIM BODY.3105"
+            b64 = PatchProjectLibrary.embeddedAimBodyBase64
+        } else if clean.contains("magic") {
+            targetFilename = "MAGICM.3105"
+            b64 = PatchProjectLibrary.embeddedMagicMBase64
+        } else {
+            targetFilename = "AIM+ESP.3105"
+            b64 = PatchProjectLibrary.embeddedAimEspBase64
+        }
+
+        if let root = try? PatchProjectLibrary.packageRootURL() {
+            let fileURL = root.appendingPathComponent(targetFilename)
+            if let data = (try? Data(contentsOf: fileURL)) ?? Data(base64Encoded: b64) {
+                if let summary = try? PatchPackageCodec.inspect(data) {
+                    let decoded = (try? PatchPackageCodec.decode(data, password: "XRE"))
+                        ?? (try? PatchPackageCodec.decode(data, password: nil))
+                    return PatchLibraryItem(
+                        summary: summary,
+                        project: decoded?.project,
+                        contentKey: decoded?.contentKey,
+                        packageURL: fileURL
+                    )
+                }
+            }
+        }
+        return nil
     }
 
     private func findPatchItem(in items: [PatchLibraryItem], filename: String) -> PatchLibraryItem? {
-        // 1. Direct exact filename match
+        let cleanTarget = filename
+            .replacingOccurrences(of: ".3105", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: ".cryptoric", with: "", options: .caseInsensitive)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        // 1. Guaranteed Fixed UUID matching
+        if cleanTarget.contains("drag") || cleanTarget == "dragm" {
+            let targetUUID = UUID(uuidString: "943B9588-B8AF-4DE3-AE97-796787FEAD5C")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
+        if cleanTarget.contains("body") || cleanTarget == "aim body" || cleanTarget == "obb" {
+            let targetUUID = UUID(uuidString: "68FA1E77-AA88-42FE-86D2-1E6D07700F09")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
+        if cleanTarget.contains("magic") || cleanTarget == "magicm" {
+            let targetUUID = UUID(uuidString: "81730787-037F-4603-AB87-32668C8BB188")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
+        if cleanTarget.contains("esp") || cleanTarget == "aim+esp" || cleanTarget.contains("cryptoric esp") {
+            let targetUUID = UUID(uuidString: "F0BEBA88-5C95-4F4C-B804-E825290ADF13")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
+
+        // 2. Direct exact filename match
         if let found = items.first(where: {
             $0.packageURL.lastPathComponent.caseInsensitiveCompare(filename) == .orderedSame
         }) {
             return found
         }
 
-        let cleanTarget = filename
-            .replacingOccurrences(of: ".3105", with: "", options: .caseInsensitive)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-
-        // 2. Direct clean name or display name or project name match
+        // 3. Direct clean name or display name or project name match
         if let found = items.first(where: {
             let itemFilename = $0.packageURL.deletingPathExtension().lastPathComponent.lowercased()
             let itemDisplay = $0.displayName.lowercased()
@@ -463,79 +531,7 @@ struct ContentView: View {
             return found
         }
 
-        // 3. Specialized alias matching for ESP
-        if cleanTarget.contains("esp") {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("esp") || display.contains("esp")
-            }) {
-                return found
-            }
-        }
-
-        // 4. Specialized alias matching for Aim variants
-        if (cleanTarget.contains("aim") && cleanTarget.contains("head")) || cleanTarget.contains("drag") {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("head") || name.contains("drag") || display.contains("head") || display.contains("drag")
-            }) {
-                return found
-            }
-        }
-
-        if cleanTarget.contains("aim") && cleanTarget.contains("neck") {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("neck") || display.contains("neck")
-            }) {
-                return found
-            }
-        }
-
-        if cleanTarget.contains("aim") && cleanTarget.contains("body") {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("body") || display.contains("body")
-            }) {
-                return found
-            }
-        }
-
-        if cleanTarget.contains("aimlock") {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("aimlock") || display.contains("aimlock")
-            }) {
-                return found
-            }
-        }
-
-        if cleanTarget.contains("cryptoric aim") || cleanTarget == "cryptoric aim" {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("cryptoric aim") || display.contains("cryptoric aim") || (name.contains("aim") && !name.contains("head") && !name.contains("neck") && !name.contains("body") && !name.contains("lock"))
-            }) {
-                return found
-            }
-        }
-
-        if cleanTarget.contains("magic") {
-            if let found = items.first(where: {
-                let name = $0.packageURL.lastPathComponent.lowercased()
-                let display = $0.displayName.lowercased()
-                return name.contains("magic") || display.contains("magic")
-            }) {
-                return found
-            }
-        }
-
-        // 5. Fuzzy fallback
+        // 4. Fuzzy fallback
         if let found = items.first(where: {
             let itemFilename = $0.packageURL.deletingPathExtension().lastPathComponent.lowercased()
             let itemDisplay = $0.displayName.lowercased()
@@ -549,8 +545,8 @@ struct ContentView: View {
     }
 
     private func isPatchActive(in items: [PatchLibraryItem], filename: String) -> Bool {
-        findPatchItem(in: items, filename: filename)
-            .flatMap { DevicePatchService.latestReceipt(projectID: $0.id) } != nil
+        guard let item = findPatchItem(for: filename) else { return false }
+        return DevicePatchService.latestReceipt(projectID: item.id) != nil
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -564,46 +560,62 @@ struct ContentView: View {
     }
 
     private func setPatchState(for packageFilename: String, enabled: Bool) {
-        switch packageFilename {
-        case "DRAGM.3105":    normAimDragEnabled = enabled
-        case "AIM BODY.3105": normAimBodyEnabled = enabled
-        case "MAGICM.3105":   normMagicEnabled   = enabled
-        case "AIM+ESP.3105":  maxAimEspEnabled   = enabled
-        default: break
+        let lower = packageFilename.lowercased()
+        if lower.contains("drag") {
+            normAimDragEnabled = enabled
+        } else if lower.contains("body") || lower.contains("obb") {
+            normAimBodyEnabled = enabled
+        } else if lower.contains("magic") {
+            normMagicEnabled = enabled
+        } else if lower.contains("esp") {
+            maxAimEspEnabled = enabled
         }
     }
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
         guard !patchOperationBusy else { return }
-        guard let item = findPatchItem(for: packageFilename) else {
-            patchMessage = "ERROR — PACKAGE NOT FOUND"
-            log("patch: package not found: \(packageFilename)")
-            return
-        }
+        patchOperationBusy = true
+        patchMessage = "PROCESSING..."
 
         let wasEnabled = state.wrappedValue
-        patchOperationBusy = true
-        patchMessage = "PROCESSING — \(packageFilename)"
-        let project = item.project
-        let projectID = item.id
 
         DispatchQueue.global(qos: .userInitiated).async {
+            // 1. Resolve library item with auto-recovery
+            var resolvedItem = self.findPatchItem(for: packageFilename)
+            if resolvedItem == nil {
+                PatchProjectLibrary.ensureEmbeddedPatchesInstalled()
+                DispatchQueue.main.sync {
+                    self.patchStore.reload()
+                }
+                resolvedItem = self.findPatchItem(for: packageFilename)
+            }
+
+            guard let item = resolvedItem else {
+                DispatchQueue.main.async {
+                    self.patchMessage = "ERROR — PACKAGE NOT FOUND"
+                    self.patchOperationBusy = false
+                }
+                return
+            }
+
+            let projectID = item.id
             let result: PatchActionResult
             do {
                 if wasEnabled {
                     try DevicePatchService.restoreAll(projectID: projectID)
                     result = .restored
                 } else {
-                    var activeProject = project
+                    var activeProject = item.project
                     if activeProject == nil {
+                        // Decode directly with password XRE
                         if let data = try? PatchProjectLibrary.readPackage(at: item.packageURL),
                            let decoded = try? PatchPackageCodec.decode(data, password: "XRE") {
                             try? PatchKeyStore.store(decoded.contentKey, for: item.summary)
                             activeProject = decoded.project
                         }
                     }
+
                     guard let validProject = activeProject else {
-                        result = .unavailable("PASSWORD REQUIRED — UNLOCK PACKAGE")
                         DispatchQueue.main.async {
                             self.patchStore.requestUnlock(for: item)
                             self.patchMessage = "PASSWORD REQUIRED — ENTER PACKAGE PASSWORD"
@@ -611,7 +623,8 @@ struct ContentView: View {
                         }
                         return
                     }
-                    let isMax = self.selectedGame == .max || packageFilename == "AIM+ESP.3105"
+
+                    let isMax = self.selectedGame == .max || packageFilename.contains("ESP") || validProject.id == UUID(uuidString: "F0BEBA88-5C95-4F4C-B804-E825290ADF13")
                     let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
@@ -639,6 +652,7 @@ struct ContentView: View {
                     self.patchMessage = message
                 }
                 self.patchOperationBusy = false
+                self.patchStore.reload()
             }
         }
     }
