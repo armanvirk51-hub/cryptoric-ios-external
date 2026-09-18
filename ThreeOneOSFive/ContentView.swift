@@ -52,7 +52,7 @@ struct ContentView: View {
             CleanerView()
         }
         .sheet(item: $patchStore.passwordRequest, onDismiss: patchStore.cancelUnlock) { _ in
-            PatchUnlockPrompt(store: patchStore)
+            PatchUnlockView(store: patchStore)
         }
         .onAppear { syncPatchStates() }
         .onChange(of: scenePhase) { phase in
