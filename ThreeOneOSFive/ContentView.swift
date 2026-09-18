@@ -594,7 +594,15 @@ struct ContentView: View {
                     try DevicePatchService.restoreAll(projectID: projectID)
                     result = .restored
                 } else {
-                    guard let project else {
+                    var activeProject = project
+                    if activeProject == nil {
+                        if let data = try? PatchProjectLibrary.readPackage(at: item.packageURL),
+                           let decoded = try? PatchPackageCodec.decode(data, password: "XRE") {
+                            try? PatchKeyStore.store(decoded.contentKey, for: item.summary)
+                            activeProject = decoded.project
+                        }
+                    }
+                    guard let validProject = activeProject else {
                         result = .unavailable("PASSWORD REQUIRED — UNLOCK PACKAGE")
                         DispatchQueue.main.async {
                             self.patchStore.requestUnlock(for: item)
@@ -605,7 +613,7 @@ struct ContentView: View {
                     }
                     let isMax = self.selectedGame == .max || packageFilename == "AIM+ESP.3105"
                     let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
-                    _ = try DevicePatchService.apply(project: project, targetBundleID: targetBundle)
+                    _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
                 }
             } catch {

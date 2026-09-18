@@ -5,8 +5,9 @@ import Security
 
 enum PatchPackageCodec {
     private static let magic = Data("3105PATCH\0".utf8)
-    static let latestSchemaVersion = 2
+    static let latestSchemaVersion = 3
     private static let minimumSchemaVersion = 1
+    private static let maximumSupportedSchemaVersion = 10
 
     // Built-in resources are encrypted at rest. This value is only used by the
     // application to unlock its bundled resources; imported packages still
@@ -64,7 +65,7 @@ enum PatchPackageCodec {
         kdfIterations: Int
     ) throws -> EncodedPatchPackage {
         try validate(project)
-        guard (minimumSchemaVersion...latestSchemaVersion).contains(schemaVersion) else {
+        guard (minimumSchemaVersion...maximumSupportedSchemaVersion).contains(schemaVersion) else {
             throw PatchPackageError.unsupportedVersion
         }
         let contentKey = try randomData(count: 32)
@@ -126,24 +127,41 @@ enum PatchPackageCodec {
             let envelope = try parseEnvelope(data)
             let contentKey: Data
             if envelope.isPasswordProtected {
-                guard let password,
-                      !password.isEmpty,
-                      password.utf8.count <= PatchPackageLimits.maximumPasswordBytes,
-                      let salt = envelope.kdfSalt,
+                var candidatePasswords: [String] = []
+                if let password, !password.isEmpty {
+                    candidatePasswords.append(password)
+                } else {
+                    candidatePasswords.append(contentsOf: ["XRE", "xre", bundledResourcePassword])
+                }
+
+                guard let salt = envelope.kdfSalt,
                       let iterations = envelope.kdfIterations,
                       let wrappedKey = envelope.wrappedContentKey
                 else {
                     throw PatchPackageError.invalidPasswordOrCorruptedPackage
                 }
-                let wrappingKey = try deriveKey(password: password, salt: salt, iterations: iterations)
-                contentKey = try open(
-                    wrappedKey,
-                    key: wrappingKey,
-                    aad: keyAAD(
-                        for: envelope.packageID,
-                        version: envelope.keyAADVersion ?? envelope.schemaVersion
-                    )
-                )
+
+                var resolvedKey: Data?
+                for pwd in candidatePasswords {
+                    guard pwd.utf8.count <= PatchPackageLimits.maximumPasswordBytes else { continue }
+                    if let wrappingKey = try? deriveKey(password: pwd, salt: salt, iterations: iterations),
+                       let opened = try? open(
+                           wrappedKey,
+                           key: wrappingKey,
+                           aad: keyAAD(
+                               for: envelope.packageID,
+                               version: envelope.keyAADVersion ?? envelope.schemaVersion
+                           )
+                       ) {
+                        resolvedKey = opened
+                        break
+                    }
+                }
+
+                guard let unwrapped = resolvedKey else {
+                    throw PatchPackageError.invalidPasswordOrCorruptedPackage
+                }
+                contentKey = unwrapped
             } else {
                 guard let storedKey = envelope.publicContentKey else {
                     throw PatchPackageError.invalidPasswordOrCorruptedPackage
@@ -193,7 +211,7 @@ enum PatchPackageCodec {
         }
         try validate(project)
         let schemaVersion = requestedSchemaVersion ?? oldEnvelope.schemaVersion
-        guard (minimumSchemaVersion...latestSchemaVersion).contains(schemaVersion) else {
+        guard (minimumSchemaVersion...maximumSupportedSchemaVersion).contains(schemaVersion) else {
             throw PatchPackageError.unsupportedVersion
         }
         let envelope = try makeEnvelope(
@@ -282,8 +300,7 @@ enum PatchPackageCodec {
     static func validate(_ project: PatchProject) throws {
         let name = project.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty,
-              name.utf8.count <= 120,
-              !project.allBundleIdentifiers.isEmpty else {
+              name.utf8.count <= 120 else {
             throw PatchPackageError.invalidProject
         }
         var bundles = Set<String>()
@@ -351,7 +368,7 @@ enum PatchPackageCodec {
         } catch {
             throw PatchPackageError.invalidPasswordOrCorruptedPackage
         }
-        guard (minimumSchemaVersion...latestSchemaVersion).contains(envelope.schemaVersion) else {
+        guard (minimumSchemaVersion...maximumSupportedSchemaVersion).contains(envelope.schemaVersion) else {
             throw PatchPackageError.unsupportedVersion
         }
         guard envelope.keyFingerprint.count == 32,
@@ -361,7 +378,7 @@ enum PatchPackageCodec {
         }
         if envelope.isPasswordProtected {
             guard envelope.publicContentKey == nil,
-                  (minimumSchemaVersion...latestSchemaVersion).contains(
+                  (minimumSchemaVersion...maximumSupportedSchemaVersion).contains(
                     envelope.keyAADVersion ?? envelope.schemaVersion
                   ),
                   envelope.kdfSalt?.count == 16,

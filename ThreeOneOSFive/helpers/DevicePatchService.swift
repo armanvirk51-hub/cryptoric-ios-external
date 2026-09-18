@@ -19,15 +19,18 @@ enum DevicePatchService {
     }
 
     private static func remapProject(_ project: PatchProject, to targetBundleID: String) -> PatchProject {
-        guard targetBundleID.caseInsensitiveCompare("com.dts.freefireth") != .orderedSame else { return project }
-        let sourceBundle = "com.dts.freefireth"
+        let isSourceSame = project.allBundleIdentifiers.allSatisfy { $0.caseInsensitiveCompare(targetBundleID) == .orderedSame }
+        if isSourceSame && !project.rules.isEmpty && project.rules.allSatisfy({ $0.bundleID.caseInsensitiveCompare(targetBundleID) == .orderedSame }) {
+            return project
+        }
 
         let newRules = project.rules.map { rule -> PatchRule in
             var r = rule
-            if r.bundleID.caseInsensitiveCompare(sourceBundle) == .orderedSame {
+            let oldBundle = r.bundleID
+            if oldBundle.caseInsensitiveCompare(targetBundleID) != .orderedSame {
                 r.bundleID = targetBundleID
-                if r.relativePath.contains("com.dts.freefireth.plist") {
-                    r.relativePath = r.relativePath.replacingOccurrences(of: "com.dts.freefireth.plist", with: "\(targetBundleID).plist")
+                if r.relativePath.contains("\(oldBundle).plist") {
+                    r.relativePath = r.relativePath.replacingOccurrences(of: "\(oldBundle).plist", with: "\(targetBundleID).plist")
                 }
             }
             return r
@@ -35,14 +38,10 @@ enum DevicePatchService {
 
         let newDirectories = project.directories.map { dir -> PatchDirectory in
             var d = dir
-            if d.bundleID.caseInsensitiveCompare(sourceBundle) == .orderedSame {
+            if d.bundleID.caseInsensitiveCompare(targetBundleID) != .orderedSame {
                 d.bundleID = targetBundleID
             }
             return d
-        }
-
-        let newBundles = project.bundleIdentifiers.map { bid in
-            bid.caseInsensitiveCompare(sourceBundle) == .orderedSame ? targetBundleID : bid
         }
 
         return PatchProject(
@@ -50,7 +49,7 @@ enum DevicePatchService {
             name: project.name,
             createdAt: project.createdAt,
             updatedAt: project.updatedAt,
-            bundleIdentifiers: newBundles.isEmpty ? [targetBundleID] : newBundles,
+            bundleIdentifiers: [targetBundleID],
             directories: newDirectories,
             rules: newRules
         )
