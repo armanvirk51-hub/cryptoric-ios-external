@@ -205,3 +205,24 @@ struct AppLogo: View {
         .accessibilityHidden(true)
     }
 }
+
+// MARK: - App Backdrop
+struct AnimatedHyperBackdrop: View {
+    var body: some View {
+        AppTheme.pageBackground
+            .ignoresSafeArea()
+    }
+}
+
+// MARK: - Audio Feedback
+import AudioToolbox
+
+enum PatchAudioFeedback {
+    static func bypassActivated() {
+        AudioServicesPlaySystemSound(1519)
+    }
+    static func originalRestored() {
+        AudioServicesPlaySystemSound(1520)
+    }
+}
+
