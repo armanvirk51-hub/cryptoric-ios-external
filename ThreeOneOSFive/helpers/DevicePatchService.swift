@@ -85,6 +85,10 @@ enum DevicePatchService {
         for receipt in receipts {
             try? restore(receipt: receipt)
         }
+        if let backupRoot = try? PatchProjectLibrary.backupRootURL() {
+            let projectDir = backupRoot.appendingPathComponent(projectID.uuidString, isDirectory: true)
+            try? FileManager.default.removeItem(at: projectDir)
+        }
     }
 
     private static func orderedBundleIdentifiers(in project: PatchProject) -> [String] {

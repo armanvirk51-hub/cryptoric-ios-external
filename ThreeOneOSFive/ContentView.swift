@@ -420,10 +420,10 @@ struct ContentView: View {
     private func syncPatchStates() {
         let items = patchStore.items
         DispatchQueue.global(qos: .userInitiated).async {
-            let f_aimDrag = self.isPatchActive(in: items, filename: "DRAGM.3105")
-            let f_aimBody = self.isPatchActive(in: items, filename: "AIM BODY.3105")
-            let f_magic   = self.isPatchActive(in: items, filename: "MAGICM.3105")
-            let m_aimEsp  = self.isPatchActive(in: items, filename: "AIM+ESP.3105")
+            let f_aimDrag = self.isPatchActive("DRAGM.3105")
+            let f_aimBody = self.isPatchActive("AIM BODY.3105")
+            let f_magic   = self.isPatchActive("MAGICM.3105")
+            let m_aimEsp  = self.isPatchActive("AIM+ESP.3105")
 
             DispatchQueue.main.async {
                 self.normAimDragEnabled = f_aimDrag
@@ -439,7 +439,7 @@ struct ContentView: View {
             return found
         }
 
-        // Fallback: construct directly from disk or embedded Base64 so it can NEVER fail
+        // Fallback: construct directly from embedded Base64 so it can NEVER fail
         let clean = packageFilename
             .replacingOccurrences(of: ".3105", with: "", options: .caseInsensitive)
             .replacingOccurrences(of: ".cryptoric", with: "", options: .caseInsensitive)
@@ -469,7 +469,7 @@ struct ContentView: View {
                         ?? (try? PatchPackageCodec.decode(data, password: nil))
                     return PatchLibraryItem(
                         summary: summary,
-                        project: decoded?.project,
+                        project: decoded?.project ?? PatchProjectLibrary.getDecodedProject(for: packageFilename),
                         contentKey: decoded?.contentKey,
                         packageURL: fileURL
                     )
@@ -544,13 +544,14 @@ struct ContentView: View {
         return nil
     }
 
-    private func isPatchActive(in items: [PatchLibraryItem], filename: String) -> Bool {
-        guard let item = findPatchItem(for: filename) else { return false }
-        return DevicePatchService.latestReceipt(projectID: item.id) != nil
-    }
-
     private func isPatchActive(_ packageFilename: String) -> Bool {
-        isPatchActive(in: patchStore.items, filename: packageFilename)
+        let key = "patch_active_" + packageFilename
+        let prefActive = UserDefaults.standard.bool(forKey: key)
+        guard let item = findPatchItem(for: packageFilename) else {
+            return prefActive
+        }
+        let receiptActive = DevicePatchService.latestReceipt(projectID: item.id) != nil
+        return prefActive && receiptActive
     }
 
     private enum PatchActionResult {
@@ -561,6 +562,9 @@ struct ContentView: View {
 
     private func setPatchState(for packageFilename: String, enabled: Bool) {
         let lower = packageFilename.lowercased()
+        let key = "patch_active_" + packageFilename
+        UserDefaults.standard.set(enabled, forKey: key)
+
         if lower.contains("drag") {
             normAimDragEnabled = enabled
         } else if lower.contains("body") || lower.contains("obb") {
@@ -590,7 +594,13 @@ struct ContentView: View {
                 resolvedItem = self.findPatchItem(for: packageFilename)
             }
 
-            guard let item = resolvedItem else {
+            // 2. Resolve project (with direct embedded fallback so it NEVER fails)
+            var activeProject = resolvedItem?.project
+            if activeProject == nil {
+                activeProject = PatchProjectLibrary.getDecodedProject(for: packageFilename)
+            }
+
+            guard let projectID = resolvedItem?.id ?? activeProject?.id else {
                 DispatchQueue.main.async {
                     self.patchMessage = "ERROR — PACKAGE NOT FOUND"
                     self.patchOperationBusy = false
@@ -598,27 +608,17 @@ struct ContentView: View {
                 return
             }
 
-            let projectID = item.id
             let result: PatchActionResult
             do {
                 if wasEnabled {
+                    // Turn OFF
                     try DevicePatchService.restoreAll(projectID: projectID)
                     result = .restored
                 } else {
-                    var activeProject = item.project
-                    if activeProject == nil {
-                        // Decode directly with password XRE
-                        if let data = try? PatchProjectLibrary.readPackage(at: item.packageURL),
-                           let decoded = try? PatchPackageCodec.decode(data, password: "XRE") {
-                            try? PatchKeyStore.store(decoded.contentKey, for: item.summary)
-                            activeProject = decoded.project
-                        }
-                    }
-
+                    // Turn ON
                     guard let validProject = activeProject else {
                         DispatchQueue.main.async {
-                            self.patchStore.requestUnlock(for: item)
-                            self.patchMessage = "PASSWORD REQUIRED — ENTER PACKAGE PASSWORD"
+                            self.patchMessage = "ERROR — UNABLE TO DECODE PACKAGE"
                             self.patchOperationBusy = false
                         }
                         return
@@ -631,7 +631,6 @@ struct ContentView: View {
                 }
             } catch {
                 if wasEnabled {
-                    log("restore completed with fallback: \(error)")
                     result = .restored
                 } else {
                     result = .unavailable("FAILED — \(error.localizedDescription)")
@@ -652,7 +651,7 @@ struct ContentView: View {
                     self.patchMessage = message
                 }
                 self.patchOperationBusy = false
-                self.patchStore.reload()
+                self.syncPatchStates()
             }
         }
     }
@@ -672,177 +671,67 @@ private struct PatchOptionCard: View {
     let iconName: String
     @Binding var isEnabled: Bool
     let isBusy: Bool
-    var isLocked: Bool = false
+    let isLocked: Bool
     let action: () -> Void
 
     var body: some View {
-        Button(action: {
-            action()
-        }) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center) {
-                    // Volumetric icon well
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(isEnabled ? AppTheme.activeGreenBg : AppTheme.depressedBackground)
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(isEnabled ? AppTheme.activeGreen.opacity(0.18) : AppTheme.cardBackground)
+
                         Image(systemName: iconName)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(isEnabled ? AppTheme.activeGreen : AppTheme.textPrimary)
                     }
-                    .frame(width: 36, height: 36)
+                    .frame(width: 38, height: 38)
+                    .claymorphicCard(cornerRadius: 14, depth: isEnabled ? 2 : 4)
 
                     Spacer()
 
-                    // Small "OFF" / "ON" pill badge with soft internal button depression
-                    HStack(spacing: 5) {
-                        if isLocked {
-                            Text("SOON")
-                                .font(.system(size: 9, weight: .bold, design: .default))
-                                .tracking(0.6)
-                                .foregroundStyle(AppTheme.textSecondary)
-                                .padding(.horizontal, 4)
-                        } else {
-                            Circle()
-                                .fill(isEnabled ? AppTheme.activeGreen : AppTheme.textMuted)
-                                .frame(width: 6, height: 6)
-                            Text(isEnabled ? "ON" : "OFF")
-                                .font(.system(size: 10, weight: .bold, design: .default))
-                                .tracking(0.8)
-                                .foregroundStyle(isEnabled ? AppTheme.activeGreen : AppTheme.textPrimary)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .claymorphicCapsuleDepression()
-                }
+                    // Toggle pill
+                    ZStack(alignment: isEnabled ? .trailing : .leading) {
+                        Capsule()
+                            .fill(isEnabled ? AppTheme.activeGreen : AppTheme.depressedBackground)
+                            .frame(width: 44, height: 24)
 
-                Spacer(minLength: 4)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 18, height: 18)
+                            .padding(.horizontal, 3)
+                            .shadow(color: Color.black.opacity(0.18), radius: 2, x: 0, y: 1.5)
+                    }
+                }
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(name)
-                        .font(.system(size: 16, weight: .bold, design: .default))
+                        .font(.system(size: 14, weight: .bold, design: .default))
                         .foregroundStyle(AppTheme.textPrimary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.80)
 
                     Text(target)
                         .font(.system(size: 9, weight: .semibold, design: .default))
-                        .tracking(0.9)
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .lineLimit(1)
-                }
-
-                // Tactile lower indicator
-                HStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(isEnabled ? AppTheme.activeGreen : (isLocked ? AppTheme.textMuted.opacity(0.3) : AppTheme.depressedBackground))
-                        .frame(height: 3)
-                        .frame(maxWidth: .infinity)
-
-                    Text(isLocked ? "COMING SOON" : (isEnabled ? "ACTIVE" : "READY"))
-                        .font(.system(size: 8, weight: .bold, design: .default))
                         .tracking(0.6)
                         .foregroundStyle(isEnabled ? AppTheme.activeGreen : AppTheme.textSecondary)
+                        .lineLimit(1)
                 }
             }
-            .padding(15)
-            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
-            .claymorphicCard(cornerRadius: 26, depth: 8)
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(AppTheme.cardBackground)
+            )
+            .claymorphicCard(cornerRadius: 22, depth: isEnabled ? 3 : 6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(isEnabled ? AppTheme.activeGreen.opacity(0.55) : Color.clear, lineWidth: 1.5)
+            )
         }
-        .claymorphicButtonPress()
-        .disabled(isBusy)
-        .opacity(isBusy ? 0.6 : (isLocked ? 0.82 : 1.0))
-        .accessibilityLabel("\(name), \(target), \(isLocked ? "Coming Soon" : (isEnabled ? "On" : "Off"))")
-    }
-}
-
-private enum PatchAudioFeedback {
-    private static let synthesizer = AVSpeechSynthesizer()
-    static func bypassActivated() { speak("Bypass ativado") }
-    static func originalRestored() { speak("Bypass desativado") }
-    private static func speak(_ message: String) {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-        try? session.setActive(true, options: [])
-        synthesizer.stopSpeaking(at: .immediate)
-        let utterance = AVSpeechUtterance(string: message)
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        utterance.voice = voices.first(where: {
-            ($0.language.hasPrefix("pt-BR") || $0.language.hasPrefix("pt-PT") || $0.language.hasPrefix("pt")) && $0.gender == .female && $0.quality == .enhanced
-        }) ?? voices.first(where: {
-            $0.language.hasPrefix("pt-BR") || $0.language.hasPrefix("pt-PT") || $0.language.hasPrefix("pt")
-        }) ?? AVSpeechSynthesisVoice(language: "pt-BR")
-        utterance.rate = 0.43
-        utterance.pitchMultiplier = 1.10
-        utterance.volume = 0.90
-        synthesizer.speak(utterance)
-    }
-}
-
-private struct PatchUnlockPrompt: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var store: PatchProjectStore
-    @State private var password = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SecureField("Package password", text: $password)
-                        .textContentType(.password)
-                        .submitLabel(.done)
-                        .onSubmit(unlock)
-                        .onChange(of: password) { _ in store.clearUnlockError() }
-                    if let errorKey = store.unlockErrorKey {
-                        Text(AppLanguage.english.text(errorKey))
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                } footer: {
-                    Text("Enter the password once to unlock this Cryptoric package on this device.")
-                }
-            }
-            .navigationTitle("Unlock package")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Unlock", action: unlock)
-                        .disabled(password.isEmpty || store.isBusy)
-                }
-            }
-        }
-    }
-
-    private func unlock() {
-        guard !password.isEmpty else { return }
-        store.unlock(password: password)
-    }
-}
-
-// MARK: - Warm Ambient Clay Backdrop
-struct AnimatedHyperBackdrop: View {
-    var body: some View {
-        ZStack {
-            AppTheme.pageBackground
-
-            // Soft, ambient volumetric warm glows to enhance clay depth
-            Circle()
-                .fill(Color(red: 0.98, green: 0.96, blue: 0.93).opacity(0.85))
-                .frame(width: 320, height: 320)
-                .blur(radius: 60)
-                .offset(x: -100, y: -200)
-                .allowsHitTesting(false)
-
-            Circle()
-                .fill(Color(red: 0.88, green: 0.86, blue: 0.82).opacity(0.35))
-                .frame(width: 300, height: 300)
-                .blur(radius: 70)
-                .offset(x: 120, y: 220)
-                .allowsHitTesting(false)
-        }
-        .drawingGroup()
+        .buttonStyle(.plain)
+        .disabled(isBusy || isLocked)
+        .opacity(isLocked ? 0.45 : 1.0)
     }
 }
