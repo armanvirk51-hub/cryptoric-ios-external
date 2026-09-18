@@ -70,14 +70,7 @@
 		3105K200 /* LicenseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105K100; };
 		3105K201 /* LicenseActivationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105K101; };
 		3105A211 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3105A031; };
-
-
-
-
 		3105NEW01 /* DRAGM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW11; };
-		3105NEW02 /* AIM BODY.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW12; };
-		3105NEW03 /* MAGICM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW13; };
-		3105NEW04 /* AIM+ESP.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW14; };		3105NEW01 /* DRAGM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW11; };
 		3105NEW02 /* AIM BODY.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW12; };
 		3105NEW03 /* MAGICM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW13; };
 		3105NEW04 /* AIM+ESP.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW14; };
@@ -164,19 +157,12 @@
 		3105I101 /* FilesTabSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesTabSwitcherView.swift; sourceTree = "<group>"; };
 		3105A121 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105A122 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
-3105A123 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		3105A123 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-
-
-
-
-		3105NEW11 /* DRAGM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/DRAGM.3105"; sourceTree = "<group>"; };
-		3105NEW12 /* AIM BODY.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/AIM BODY.3105"; sourceTree = "<group>"; };
-		3105NEW13 /* MAGICM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/MAGICM.3105"; sourceTree = "<group>"; };
-		3105NEW14 /* AIM+ESP.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/AIM+ESP.3105"; sourceTree = "<group>"; };		3105NEW11 /* DRAGM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/DRAGM.3105"; sourceTree = "<group>"; };
-		3105NEW12 /* AIM BODY.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/AIM BODY.3105"; sourceTree = "<group>"; };
-		3105NEW13 /* MAGICM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/MAGICM.3105"; sourceTree = "<group>"; };
-		3105NEW14 /* AIM+ESP.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ThreeOneOSFive/Patches/AIM+ESP.3105"; sourceTree = "<group>"; };
+		3105NEW11 /* DRAGM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DRAGM.3105"; sourceTree = "<group>"; };
+		3105NEW12 /* AIM BODY.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM BODY.3105"; sourceTree = "<group>"; };
+		3105NEW13 /* MAGICM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MAGICM.3105"; sourceTree = "<group>"; };
+		3105NEW14 /* AIM+ESP.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM+ESP.3105"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -184,10 +170,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3105NEW01 /* DRAGM.3105 in Resources */,
-				3105NEW02 /* AIM BODY.3105 in Resources */,
-				3105NEW03 /* MAGICM.3105 in Resources */,
-				3105NEW04 /* AIM+ESP.3105 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,6 +195,7 @@
 				3105A404 /* views */,
 				3105A405 /* helpers */,
 				3105A406 /* kexploit */,
+				3105A407 /* Patches */,
 				3105A120 /* Localizable.strings */,
 				3105A031 /* Assets.xcassets */,
 			);
@@ -289,10 +272,10 @@
 				3105F102 /* WallpaperLabModels.swift */,
 				3105F103 /* SecureZIPArchive.swift */,
 				3105F104 /* WallpaperInstaller.swift */,
-					3105F105 /* WallpaperLabService.swift */,
-					3105K100 /* LicenseManager.swift */,
-					3105K101 /* LicenseActivationView.swift */,
-					3105A106 /* AppIconHelper.m */,
+				3105F105 /* WallpaperLabService.swift */,
+				3105K100 /* LicenseManager.swift */,
+				3105K101 /* LicenseActivationView.swift */,
+				3105A106 /* AppIconHelper.m */,
 				3105A107 /* AppIconHelper.h */,
 				3105A202 /* KernelExploit.swift */,
 				3105J201 /* AntiDetection.m */,
@@ -325,6 +308,17 @@
 				3105A097 /* xpaci.h */,
 			);
 			path = kexploit;
+			sourceTree = "<group>";
+		};
+		3105A407 /* Patches */ = {
+			isa = PBXGroup;
+			children = (
+				3105NEW11 /* DRAGM.3105 */,
+				3105NEW12 /* AIM BODY.3105 */,
+				3105NEW13 /* MAGICM.3105 */,
+				3105NEW14 /* AIM+ESP.3105 */,
+			);
+			path = Patches;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -386,30 +380,11 @@
 				3105NEW02 /* AIM BODY.3105 in Resources */,
 				3105NEW03 /* MAGICM.3105 in Resources */,
 				3105NEW04 /* AIM+ESP.3105 in Resources */,
-				3105A211,
-				3105A228,
-				3105P201,
-				3105P202,
-					3105P209,
-					3105P208,
-					3105P210,
-					3105P211,
-				3105P213,
-				3105P214,
-				3105P215,
-				3105P216,
-				3105P217,
-				3105P218,
-				3105P219,
-				3105P220,
-				3105Q200,
+				3105A211 /* Assets.xcassets in Resources */,
+				3105A228 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-				3105NEW01 /* DRAGM.3105 in Resources */,
-				3105NEW02 /* AIM BODY.3105 in Resources */,
-				3105NEW03 /* MAGICM.3105 in Resources */,
-				3105NEW04 /* AIM+ESP.3105 in Resources */,
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -417,10 +392,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3105NEW01 /* DRAGM.3105 in Resources */,
-				3105NEW02 /* AIM BODY.3105 in Resources */,
-				3105NEW03 /* MAGICM.3105 in Resources */,
-				3105NEW04 /* AIM+ESP.3105 in Resources */,
 				3105A200, 3105A201, 3105A203, 3105A204,
 				3105A205, 3105A206, 3105A207, 3105A209,
 				3105A210, 3105A220, 3105A221, 3105A222, 3105A223,
@@ -439,10 +410,10 @@
 				3105J204,
 				3105J206,
 				3105A240,
-					3105A241,
-					3105K200,
-					3105K201,
-					3105B214,
+				3105A241,
+				3105K200,
+				3105K201,
+				3105B214,
 				3105B215,
 				3105B216,
 				3105B217,
@@ -485,7 +456,7 @@
 				3105A123 /* es */,
 				3105B123 /* zh-Hans */,
 			);
-			name = Localizable.strings;
+			name = "Localizable.strings";
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -603,7 +574,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
-					"",
+					"$(inherited)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -698,7 +669,7 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-	};
-	rootObject = 3105A900;
-}
 
+	};
+	rootObject = 3105A900 /* Project object */;
+}
