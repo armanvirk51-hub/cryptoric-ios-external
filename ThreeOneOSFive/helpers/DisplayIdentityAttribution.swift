@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 
 // Display-identity attribution interaction.
 // Looks like an accessibility / display-identity trust gesture.
@@ -43,13 +43,9 @@ private struct WindowLongPressView: UIViewRepresentable {
         }
 
         func installIfNeeded(hostView: UIView) {
-            let allWindows: [UIWindow] = {
-                let sceneWindows = UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene }).flatMap({ $0.windows })
-                if !sceneWindows.isEmpty { return sceneWindows }
-                // Fallback for edge cases
-                return UIApplication.shared.windows
-            }()
+            let allWindows: [UIWindow] = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
             let win = hostView.window
                 ?? allWindows.first(where: { $0.isKeyWindow })
                 ?? allWindows.first
