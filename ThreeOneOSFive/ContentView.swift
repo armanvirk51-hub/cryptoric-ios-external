@@ -15,8 +15,10 @@ struct ContentView: View {
     @State private var normAimDragEnabled = false
     @State private var normAimBodyEnabled = false
     @State private var normMagicEnabled = false
+    @State private var normCryptoricAimEnabled = false
     // FF MAX states
     @State private var maxAimEspEnabled = false
+    @State private var maxCryptoricAimEnabled = false
 
     private enum GameMode: String, CaseIterable {
         case normal = "FF NORMAL"
@@ -187,12 +189,14 @@ struct ContentView: View {
                     patchCard(name: "Aim Drag", target: "FREE FIRE • NORMAL", package: "DRAGM.3105", icon: "scope", state: $normAimDragEnabled)
                     patchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", package: "AIM BODY.3105", icon: "person.fill.viewfinder", state: $normAimBodyEnabled)
                     patchCard(name: "Magic Bullet", target: "FREE FIRE • NORMAL", package: "MAGICM.3105", icon: "wand.and.stars", state: $normMagicEnabled)
+                    patchCard(name: "Cryptoric Aim", target: "FREE FIRE • NORMAL", package: "Cryptoric Aim.3105", icon: "scope", state: $normCryptoricAimEnabled)
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • NORMAL", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                     patchCard(name: "Aim+ESP", target: "FREE FIRE • MAX", package: "AIM+ESP.3105", icon: "eye.trianglebadge.exclamationmark", state: $maxAimEspEnabled)
+                    patchCard(name: "Cryptoric Aim", target: "FREE FIRE • MAX", package: "Cryptoric Aim.3105", icon: "scope", state: $maxCryptoricAimEnabled)
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • MAX", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -420,16 +424,20 @@ struct ContentView: View {
     private func syncPatchStates() {
         let items = patchStore.items
         DispatchQueue.global(qos: .userInitiated).async {
-            let f_aimDrag = self.isPatchActive("DRAGM.3105")
-            let f_aimBody = self.isPatchActive("AIM BODY.3105")
-            let f_magic   = self.isPatchActive("MAGICM.3105")
-            let m_aimEsp  = self.isPatchActive("AIM+ESP.3105")
+            let f_aimDrag = self.isPatchActive("DRAGM.3105", forGame: .normal)
+            let f_aimBody = self.isPatchActive("AIM BODY.3105", forGame: .normal)
+            let f_magic   = self.isPatchActive("MAGICM.3105", forGame: .normal)
+            let f_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .normal)
+            let m_aimEsp  = self.isPatchActive("AIM+ESP.3105", forGame: .max)
+            let m_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .max)
 
             DispatchQueue.main.async {
                 self.normAimDragEnabled = f_aimDrag
                 self.normAimBodyEnabled = f_aimBody
                 self.normMagicEnabled   = f_magic
+                self.normCryptoricAimEnabled = f_crypt
                 self.maxAimEspEnabled   = m_aimEsp
+                self.maxCryptoricAimEnabled = m_crypt
             }
         }
     }
@@ -456,6 +464,9 @@ struct ContentView: View {
         } else if clean.contains("magic") {
             targetFilename = "MAGICM.3105"
             b64 = PatchProjectLibrary.embeddedMagicMBase64
+        } else if clean.contains("cryptoric") {
+            targetFilename = "Cryptoric Aim.3105"
+            b64 = PatchProjectLibrary.embeddedCryptoricAimBase64
         } else {
             targetFilename = "AIM+ESP.3105"
             b64 = PatchProjectLibrary.embeddedAimEspBase64
@@ -466,6 +477,7 @@ struct ContentView: View {
             if let data = (try? Data(contentsOf: fileURL)) ?? Data(base64Encoded: b64) {
                 if let summary = try? PatchPackageCodec.inspect(data) {
                     let decoded = (try? PatchPackageCodec.decode(data, password: "XRE"))
+                        ?? (try? PatchPackageCodec.decode(data, password: "FLOCKER-DEV"))
                         ?? (try? PatchPackageCodec.decode(data, password: nil))
                     return PatchLibraryItem(
                         summary: summary,
@@ -511,6 +523,12 @@ struct ContentView: View {
                 return found
             }
         }
+        if cleanTarget.contains("cryptoric aim") || cleanTarget.contains("cryptoric") {
+            let targetUUID = UUID(uuidString: "C60517A3-DBCE-4C28-829F-9E4B9C6D0FC1")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
 
         // 2. Direct exact filename match
         if let found = items.first(where: {
@@ -544,9 +562,11 @@ struct ContentView: View {
         return nil
     }
 
-    private func isPatchActive(_ packageFilename: String) -> Bool {
-        let key = "patch_active_" + packageFilename
-        let prefActive = UserDefaults.standard.bool(forKey: key)
+    private func isPatchActive(_ packageFilename: String, forGame game: GameMode? = nil) -> Bool {
+        let mode = game ?? selectedGame
+        let gameKey = "patch_active_\(mode.rawValue)_" + packageFilename
+        let genericKey = "patch_active_" + packageFilename
+        let prefActive = UserDefaults.standard.bool(forKey: gameKey) || (game == nil && UserDefaults.standard.bool(forKey: genericKey))
         guard let item = findPatchItem(for: packageFilename) else {
             return prefActive
         }
@@ -560,10 +580,11 @@ struct ContentView: View {
         case unavailable(String)
     }
 
-    private func setPatchState(for packageFilename: String, enabled: Bool) {
+    private func setPatchState(for packageFilename: String, game: GameMode, enabled: Bool) {
         let lower = packageFilename.lowercased()
-        let key = "patch_active_" + packageFilename
-        UserDefaults.standard.set(enabled, forKey: key)
+        let gameKey = "patch_active_\(game.rawValue)_" + packageFilename
+        UserDefaults.standard.set(enabled, forKey: gameKey)
+        UserDefaults.standard.set(enabled, forKey: "patch_active_" + packageFilename)
 
         if lower.contains("drag") {
             normAimDragEnabled = enabled
@@ -573,6 +594,12 @@ struct ContentView: View {
             normMagicEnabled = enabled
         } else if lower.contains("esp") {
             maxAimEspEnabled = enabled
+        } else if lower.contains("cryptoric") {
+            if game == .normal {
+                normCryptoricAimEnabled = enabled
+            } else {
+                maxCryptoricAimEnabled = enabled
+            }
         }
     }
 
@@ -582,6 +609,7 @@ struct ContentView: View {
         patchMessage = "PROCESSING..."
 
         let wasEnabled = state.wrappedValue
+        let currentGame = self.selectedGame
 
         DispatchQueue.global(qos: .userInitiated).async {
             // 1. Resolve library item with auto-recovery
@@ -624,7 +652,7 @@ struct ContentView: View {
                         return
                     }
 
-                    let isMax = self.selectedGame == .max || packageFilename.contains("ESP") || validProject.id == UUID(uuidString: "F0BEBA88-5C95-4F4C-B804-E825290ADF13")
+                    let isMax = currentGame == .max || packageFilename.contains("ESP")
                     let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
@@ -640,11 +668,11 @@ struct ContentView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .applied:
-                    self.setPatchState(for: packageFilename, enabled: true)
+                    self.setPatchState(for: packageFilename, game: currentGame, enabled: true)
                     self.patchMessage = "Inject Successful — \(packageFilename)"
                     PatchAudioFeedback.bypassActivated()
                 case .restored:
-                    self.setPatchState(for: packageFilename, enabled: false)
+                    self.setPatchState(for: packageFilename, game: currentGame, enabled: false)
                     self.patchMessage = "Restore Successful — \(packageFilename)"
                     PatchAudioFeedback.originalRestored()
                 case .unavailable(let message):
