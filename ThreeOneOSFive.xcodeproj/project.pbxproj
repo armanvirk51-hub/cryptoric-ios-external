@@ -74,6 +74,7 @@
 		3105NEW02 /* AIM BODY.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW12; };
 		3105NEW03 /* MAGICM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW13; };
 		3105NEW04 /* AIM+ESP.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW14; };
+		3105NEW05 /* Cryptoric Aim.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW15; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -163,6 +164,7 @@
 		3105NEW12 /* AIM BODY.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM BODY.3105"; sourceTree = "<group>"; };
 		3105NEW13 /* MAGICM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MAGICM.3105"; sourceTree = "<group>"; };
 		3105NEW14 /* AIM+ESP.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM+ESP.3105"; sourceTree = "<group>"; };
+		3105NEW15 /* Cryptoric Aim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Cryptoric Aim.3105"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -317,6 +319,7 @@
 				3105NEW12 /* AIM BODY.3105 */,
 				3105NEW13 /* MAGICM.3105 */,
 				3105NEW14 /* AIM+ESP.3105 */,
+				3105NEW15 /* Cryptoric Aim.3105 */,
 			);
 			path = Patches;
 			sourceTree = "<group>";
@@ -380,6 +383,7 @@
 				3105NEW02 /* AIM BODY.3105 in Resources */,
 				3105NEW03 /* MAGICM.3105 in Resources */,
 				3105NEW04 /* AIM+ESP.3105 in Resources */,
+				3105NEW05 /* Cryptoric Aim.3105 in Resources */,
 				3105A211 /* Assets.xcassets in Resources */,
 				3105A228 /* Localizable.strings in Resources */,
 			);

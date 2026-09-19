@@ -20,6 +20,7 @@ struct PatchLibraryItem: Identifiable {
         if filename == "AIM BODY" || filename == "OBB" { return "Aim Body" }
         if filename == "MAGICM" || filename == "MAGIC" { return "Magic Bullet" }
         if filename == "AIM+ESP" || filename.contains("ESP") { return "Aim+ESP" }
+        if filename == "Cryptoric Aim" { return "Cryptoric Aim" }
         if let internalName = project?.name, !internalName.isEmpty {
             return internalName
         }
@@ -73,7 +74,7 @@ enum PatchProjectLibrary {
         
         // Clean up legacy patch files if present
         let legacyNames = [
-            "Cryptoric Aim.3105", "ESP BOX FFM.3105", "Esp FFM.3105", "FFM ESP.3105",
+            "ESP BOX FFM.3105", "Esp FFM.3105", "FFM ESP.3105",
             "FFM AIM HEAD.3105", "FFM AIMLOCK.3105", "FFM AIMLOCK (1).3105",
             "FFM AIM NECK.3105", "FFM AIM BODY.3105", "MAGIC-BULLET FFMAX K-OB54 -.3105",
             "OBB.Cryptoric", "DRAG.Cryptoric", "MAGIC.Cryptoric", "Cryptoric ESP.Cryptoric"

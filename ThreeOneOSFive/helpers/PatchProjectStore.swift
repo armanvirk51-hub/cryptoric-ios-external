@@ -47,10 +47,10 @@ final class PatchProjectStore: ObservableObject {
         items = PatchProjectLibrary.load()
     }
 
-    /// Silently unlocks any bundled patch files that are password-protected with "XRE".
+    /// Silently unlocks any bundled patch files that are password-protected with known bundled passwords.
     /// This removes the password prompt for the pre-bundled patches.
     private func autoUnlockBundledPackages() {
-        let bundledPassword = "XRE"
+        let bundledPasswords = ["XRE", "FLOCKER-DEV"]
         let lockedItems = items.filter { $0.isLocked }
         guard !lockedItems.isEmpty else { return }
 
@@ -62,15 +62,22 @@ final class PatchProjectStore: ObservableObject {
                     guard summary.isPasswordProtected else { continue }
                     // Check if we already have the key stored
                     if let _ = try? PatchKeyStore.load(for: summary) { continue }
-                    // Attempt unlock with the bundled password
-                    let decoded = try PatchPackageCodec.decode(data, password: bundledPassword)
-                    try PatchKeyStore.store(decoded.contentKey, for: summary)
-                    try PatchProjectLibrary.installImportedPackage(
-                        data: data,
-                        decoded: decoded,
-                        summary: summary,
-                        existingURL: item.packageURL
-                    )
+                    // Attempt unlock with each bundled password
+                    var unlocked = false
+                    for pwd in bundledPasswords {
+                        if let decoded = try? PatchPackageCodec.decode(data, password: pwd) {
+                            try PatchKeyStore.store(decoded.contentKey, for: summary)
+                            try PatchProjectLibrary.installImportedPackage(
+                                data: data,
+                                decoded: decoded,
+                                summary: summary,
+                                existingURL: item.packageURL
+                            )
+                            unlocked = true
+                            break
+                        }
+                    }
+                    if !unlocked { continue }
                 } catch {
                     // Wrong password or not our patch — skip silently
                 }
@@ -210,7 +217,7 @@ final class PatchProjectStore: ObservableObject {
         guard item.isLocked, !isBusy else { return }
         do {
             let data = try PatchProjectLibrary.readPackage(at: item.packageURL)
-            let candidatePasswords = ["XRE", "xre", PatchPackageCodec.bundledResourcePassword]
+            let candidatePasswords = ["XRE", "xre", "FLOCKER-DEV", PatchPackageCodec.bundledResourcePassword]
             for pwd in candidatePasswords {
                 if let decoded = try? PatchPackageCodec.decode(data, password: pwd) {
                     try? PatchKeyStore.store(decoded.contentKey, for: item.summary)
