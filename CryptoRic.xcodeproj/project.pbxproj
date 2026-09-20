@@ -73,7 +73,10 @@
 		3105NEW01 /* DRAGM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW11; };
 		3105NEW02 /* AIM BODY.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW12; };
 		3105NEW03 /* MAGICM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW13; };
-		3105NEW04 /* AIM+ESP.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW14; };
+		3105NEW04 /* AIM+Ashok.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW14; };
+		3105NEW05 /* Cryptoric Aim.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW15; };
+		3105NEW06 /* MODE MENU.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW16; };
+		3105NEW07 /* MODE MENU FFM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW17; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -162,7 +165,10 @@
 		3105NEW11 /* DRAGM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DRAGM.3105"; sourceTree = "<group>"; };
 		3105NEW12 /* AIM BODY.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM BODY.3105"; sourceTree = "<group>"; };
 		3105NEW13 /* MAGICM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MAGICM.3105"; sourceTree = "<group>"; };
-		3105NEW14 /* AIM+ESP.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM+ESP.3105"; sourceTree = "<group>"; };
+		3105NEW14 /* AIM+Ashok.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AIM+Ashok.3105"; sourceTree = "<group>"; };
+		3105NEW15 /* Cryptoric Aim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Cryptoric Aim.3105"; sourceTree = "<group>"; };
+		3105NEW16 /* MODE MENU.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MODE MENU.3105"; sourceTree = "<group>"; };
+		3105NEW17 /* MODE MENU FFM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MODE MENU FFM.3105"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -316,7 +322,10 @@
 				3105NEW11 /* DRAGM.3105 */,
 				3105NEW12 /* AIM BODY.3105 */,
 				3105NEW13 /* MAGICM.3105 */,
-				3105NEW14 /* AIM+ESP.3105 */,
+				3105NEW14 /* AIM+Ashok.3105 */,
+				3105NEW15 /* Cryptoric Aim.3105 */,
+				3105NEW16 /* MODE MENU.3105 */,
+				3105NEW17 /* MODE MENU FFM.3105 */,
 			);
 			path = Patches;
 			sourceTree = "<group>";
@@ -379,7 +388,10 @@
 				3105NEW01 /* DRAGM.3105 in Resources */,
 				3105NEW02 /* AIM BODY.3105 in Resources */,
 				3105NEW03 /* MAGICM.3105 in Resources */,
-				3105NEW04 /* AIM+ESP.3105 in Resources */,
+				3105NEW04 /* AIM+Ashok.3105 in Resources */,
+				3105NEW05 /* Cryptoric Aim.3105 in Resources */,
+				3105NEW06 /* MODE MENU.3105 in Resources */,
+				3105NEW07 /* MODE MENU FFM.3105 in Resources */,
 				3105A211 /* Assets.xcassets in Resources */,
 				3105A228 /* Localizable.strings in Resources */,
 			);

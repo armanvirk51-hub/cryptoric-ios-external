@@ -124,24 +124,19 @@ struct PatchProjectsView: View {
             }
             .sheet(isPresented: $showCreate) {
                 PatchProjectEditorView(
-                    existingProject: nil,
-                    passwordIsProtected: false
-                ) { project, password in
-                    store.create(project: project, password: password)
+                    existingProject: nil
+                ) { project, _ in
+                    store.create(project: project)
                 }
             }
             .sheet(item: $draftCoordinator.request) { request in
                 PatchProjectEditorView(
                     existingProject: nil,
-                    passwordIsProtected: false,
                     initialDraft: request.draft
-                ) { project, password in
-                    store.create(project: project, password: password)
+                ) { project, _ in
+                    store.create(project: project)
                     draftCoordinator.clear()
                 }
-            }
-            .sheet(item: $store.passwordRequest, onDismiss: store.cancelUnlock) { _ in
-                PatchUnlockView(store: store)
             }
             .alert(item: $store.alert) { alert in
                 Alert(
@@ -236,62 +231,12 @@ private struct PatchProjectRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if item.summary.isPasswordProtected {
-                Image(systemName: "key.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(language.text("patch.password_protected"))
-            }
+
         }
         .padding(.vertical, 4)
     }
 }
 
-struct PatchUnlockView: View {
-    @Environment(\.appLanguage) private var language
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var store: PatchProjectStore
-    @State private var password = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SecureField(language.text("patch.password"), text: $password)
-                        .textContentType(.password)
-                        .submitLabel(.done)
-                        .onSubmit(unlock)
-                        .onChange(of: password) { _ in
-                            store.clearUnlockError()
-                        }
-                    if let errorKey = store.unlockErrorKey {
-                        Text(language.text(errorKey))
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                } footer: {
-                    Text(language.text("patch.password_once_message"))
-                }
-            }
-            .navigationTitle(language.text("patch.unlock"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(language.text("common.cancel")) { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(language.text("patch.unlock"), action: unlock)
-                        .disabled(password.isEmpty || store.isBusy)
-                }
-            }
-        }
-    }
-
-    private func unlock() {
-        guard !password.isEmpty else { return }
-        store.unlock(password: password)
-    }
-}
 
 private struct PatchProjectDetailView: View {
     @Environment(\.appLanguage) private var language
@@ -381,17 +326,7 @@ private struct PatchProjectDetailView: View {
                     }
                 }
 
-                Section(language.text("patch.password")) {
-                    HStack(spacing: 12) {
-                        Image(systemName: item.summary.isPasswordProtected ? "lock.fill" : "lock.open")
-                            .foregroundStyle(AppTheme.accent)
-                            .frame(width: 24)
-                        Text(language.text(item.summary.isPasswordProtected
-                            ? "patch.password_locked"
-                            : "patch.no_password"))
-                            .font(.subheadline)
-                    }
-                }
+
 
                 Section {
                     Button {
@@ -435,8 +370,7 @@ private struct PatchProjectDetailView: View {
         .sheet(isPresented: $showEditor) {
             if let item, let project = item.project {
                 PatchProjectEditorView(
-                    existingProject: projectForEditor(project, displayName: item.displayName),
-                    passwordIsProtected: item.summary.isPasswordProtected
+                    existingProject: projectForEditor(project, displayName: item.displayName)
                 ) { updatedProject, _ in
                     store.update(project: updatedProject)
                 }

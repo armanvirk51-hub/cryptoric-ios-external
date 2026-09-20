@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-IPA="${1:-$ROOT/build/HYper-Regedit-Key-Enabled-unsigned.ipa}"
+IPA="${1:-$ROOT/build/Cryptoric-unsigned.ipa}"
 
 if ! command -v unzip >/dev/null 2>&1; then
   echo "Error: unzip is required." >&2

@@ -4,7 +4,6 @@ struct PatchProjectEditorView: View {
     @Environment(\.appLanguage) private var language
     @Environment(\.dismiss) private var dismiss
     let existingProject: PatchProject?
-    let passwordIsProtected: Bool
     let initialDraft: PatchProjectDraft?
     let onSave: (PatchProject, String?) -> Void
 
@@ -13,18 +12,15 @@ struct PatchProjectEditorView: View {
     @State private var bundleIdentifiers: [String]
     @State private var directories: [PatchDirectory]
     @State private var rules: [PatchRule]
-    @State private var password = ""
     @State private var ruleEditor: PatchRuleEditorContext?
     @State private var validationMessageKey: String?
 
     init(
         existingProject: PatchProject?,
-        passwordIsProtected: Bool,
         initialDraft: PatchProjectDraft? = nil,
         onSave: @escaping (PatchProject, String?) -> Void
     ) {
         self.existingProject = existingProject
-        self.passwordIsProtected = passwordIsProtected
         self.initialDraft = initialDraft
         self.onSave = onSave
         _name = State(initialValue: existingProject?.name ?? initialDraft?.name ?? "")
@@ -109,23 +105,7 @@ struct PatchProjectEditorView: View {
                     }
                 }
 
-                Section {
-                    if existingProject == nil {
-                        SecureField(language.text("patch.password_optional"), text: $password)
-                            .textContentType(.newPassword)
-                    } else {
-                        Label(
-                            language.text(passwordIsProtected ? "patch.password_locked" : "patch.no_password"),
-                            systemImage: passwordIsProtected ? "lock.fill" : "lock.open"
-                        )
-                    }
-                } header: {
-                    Text(language.text("patch.password"))
-                } footer: {
-                    Text(language.text(existingProject == nil
-                        ? "patch.password_immutable_footer"
-                        : "patch.password_existing_footer"))
-                }
+
 
                 if let validationMessageKey {
                     Section {
@@ -224,7 +204,7 @@ struct PatchProjectEditorView: View {
         )
         do {
             try PatchPackageCodec.validate(project)
-            onSave(project, existingProject == nil && !password.isEmpty ? password : nil)
+            onSave(project, nil)
             dismiss()
         } catch let error as PatchPackageError {
             validationMessageKey = error.localizationKey

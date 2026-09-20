@@ -9,11 +9,6 @@ enum PatchPackageCodec {
     private static let minimumSchemaVersion = 1
     private static let maximumSupportedSchemaVersion = 10
 
-    // Built-in resources are encrypted at rest. This value is only used by the
-    // application to unlock its bundled resources; imported packages still
-    // require the user-supplied password.
-    static let bundledResourcePassword = String(decoding: [120,84,111,112,49,45,69,120,116,101,114,110,97,108,45,73,110,116,101,114,110,97,108,45,80,97,116,99,104,45,75,101,121,45,50,48,50,54], as: UTF8.self)
-
     private struct Envelope: Codable {
         let schemaVersion: Int
         let keyAADVersion: Int?
@@ -34,7 +29,7 @@ enum PatchPackageCodec {
 
     static func encodeNew(
         project: PatchProject,
-        password: String?,
+        password: String? = nil,
         kdfIterations: Int = PatchPackageLimits.defaultKDFIterations
     ) throws -> EncodedPatchPackage {
         try encode(
@@ -47,7 +42,7 @@ enum PatchPackageCodec {
 
     static func encodeLegacyV1(
         project: PatchProject,
-        password: String?,
+        password: String? = nil,
         kdfIterations: Int = PatchPackageLimits.defaultKDFIterations
     ) throws -> EncodedPatchPackage {
         try encode(
@@ -122,46 +117,33 @@ enum PatchPackageCodec {
         )
     }
 
-    static func decode(_ data: Data, password: String?) throws -> DecodedPatchPackage {
+    static func decode(_ data: Data, password: String? = nil) throws -> DecodedPatchPackage {
         do {
             let envelope = try parseEnvelope(data)
             let contentKey: Data
             if envelope.isPasswordProtected {
-                var candidatePasswords: [String] = []
-                if let password, !password.isEmpty {
-                    candidatePasswords.append(password)
-                } else {
-                    candidatePasswords.append(contentsOf: ["XRE", "xre", bundledResourcePassword])
-                }
-
-                guard let salt = envelope.kdfSalt,
+                guard let password, !password.isEmpty,
+                      password.utf8.count <= PatchPackageLimits.maximumPasswordBytes,
+                      let salt = envelope.kdfSalt,
                       let iterations = envelope.kdfIterations,
                       let wrappedKey = envelope.wrappedContentKey
                 else {
                     throw PatchPackageError.invalidPasswordOrCorruptedPackage
                 }
 
-                var resolvedKey: Data?
-                for pwd in candidatePasswords {
-                    guard pwd.utf8.count <= PatchPackageLimits.maximumPasswordBytes else { continue }
-                    if let wrappingKey = try? deriveKey(password: pwd, salt: salt, iterations: iterations),
-                       let opened = try? open(
-                           wrappedKey,
-                           key: wrappingKey,
-                           aad: keyAAD(
-                               for: envelope.packageID,
-                               version: envelope.keyAADVersion ?? envelope.schemaVersion
-                           )
-                       ) {
-                        resolvedKey = opened
-                        break
-                    }
-                }
-
-                guard let unwrapped = resolvedKey else {
+                guard let wrappingKey = try? deriveKey(password: password, salt: salt, iterations: iterations),
+                      let opened = try? open(
+                          wrappedKey,
+                          key: wrappingKey,
+                          aad: keyAAD(
+                              for: envelope.packageID,
+                              version: envelope.keyAADVersion ?? envelope.schemaVersion
+                          )
+                      )
+                else {
                     throw PatchPackageError.invalidPasswordOrCorruptedPackage
                 }
-                contentKey = unwrapped
+                contentKey = opened
             } else {
                 guard let storedKey = envelope.publicContentKey else {
                     throw PatchPackageError.invalidPasswordOrCorruptedPackage

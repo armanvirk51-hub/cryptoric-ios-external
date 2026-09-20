@@ -16,15 +16,17 @@ struct ContentView: View {
     @State private var normAimBodyEnabled = false
     @State private var normMagicEnabled = false
     @State private var normCryptoricAimEnabled = false
+    @State private var normModMenuEnabled = false
     // FF MAX states
     @State private var maxAimEspEnabled = false
     @State private var maxCryptoricAimEnabled = false
+    @State private var maxModMenuEnabled = false
 
     private enum GameMode: String, CaseIterable {
         case normal = "FF NORMAL"
         case max    = "FF MAX"
         var launchScheme: String { self == .normal ? "freefireth" : "freefiremax" }
-        var patchPrefix: String { self == .normal ? "Cryptoric" : "OGIOS" }
+        var patchPrefix: String { "Cryptoric" }
     }
 
     var body: some View {
@@ -53,9 +55,7 @@ struct ContentView: View {
         .sheet(isPresented: $showCleaner) {
             CleanerView()
         }
-        .sheet(item: $patchStore.passwordRequest, onDismiss: patchStore.cancelUnlock) { _ in
-            PatchUnlockView(store: patchStore)
-        }
+
         .onAppear { syncPatchStates() }
         .onChange(of: scenePhase) { phase in
             guard phase == .active, !patchOperationBusy else { return }
@@ -190,13 +190,15 @@ struct ContentView: View {
                     patchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", package: "AIM BODY.3105", icon: "person.fill.viewfinder", state: $normAimBodyEnabled)
                     patchCard(name: "Magic Bullet", target: "FREE FIRE • NORMAL", package: "MAGICM.3105", icon: "wand.and.stars", state: $normMagicEnabled)
                     patchCard(name: "Cryptoric Aim", target: "FREE FIRE • NORMAL", package: "Cryptoric Aim.3105", icon: "scope", state: $normCryptoricAimEnabled)
+                    patchCard(name: "Mode Menu", target: "FREE FIRE • NORMAL", package: "MODE MENU.3105", icon: "slider.horizontal.3", state: $normModMenuEnabled)
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • NORMAL", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    patchCard(name: "Aim+ESP", target: "FREE FIRE • MAX", package: "AIM+ESP.3105", icon: "eye.trianglebadge.exclamationmark", state: $maxAimEspEnabled)
+                    patchCard(name: "Cryptoric", target: "FREE FIRE • MAX", package: "AIM+Ashok.3105", icon: "eye.trianglebadge.exclamationmark", state: $maxAimEspEnabled, activeColor: AppTheme.espRed)
                     patchCard(name: "Cryptoric Aim", target: "FREE FIRE • MAX", package: "Cryptoric Aim.3105", icon: "scope", state: $maxCryptoricAimEnabled)
+                    patchCard(name: "Mode Menu", target: "FREE FIRE • MAX", package: "MODE MENU FFM.3105", icon: "slider.horizontal.3", state: $maxModMenuEnabled)
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • MAX", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -244,8 +246,8 @@ struct ContentView: View {
         .claymorphicDepression(cornerRadius: 17)
     }
 
-    private func patchCard(name: String, target: String, package: String, icon: String, state: Binding<Bool>) -> some View {
-        PatchOptionCard(name: name, target: target, iconName: icon, isEnabled: state, isBusy: patchOperationBusy, isLocked: false) {
+    private func patchCard(name: String, target: String, package: String, icon: String, state: Binding<Bool>, activeColor: Color = AppTheme.activeGreen) -> some View {
+        PatchOptionCard(name: name, target: target, iconName: icon, isEnabled: state, isBusy: patchOperationBusy, isLocked: false, activeColor: activeColor) {
             togglePatch(packageFilename: package, state: state)
         }
     }
@@ -428,16 +430,20 @@ struct ContentView: View {
             let f_aimBody = self.isPatchActive("AIM BODY.3105", forGame: .normal)
             let f_magic   = self.isPatchActive("MAGICM.3105", forGame: .normal)
             let f_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .normal)
-            let m_aimEsp  = self.isPatchActive("AIM+ESP.3105", forGame: .max)
+            let f_mod     = self.isPatchActive("MODE MENU.3105", forGame: .normal)
+            let m_aimAshok = self.isPatchActive("AIM+Ashok.3105", forGame: .max) || self.isPatchActive("AIM+ESP.3105", forGame: .max)
             let m_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .max)
+            let m_mod     = self.isPatchActive("MODE MENU FFM.3105", forGame: .max)
 
             DispatchQueue.main.async {
                 self.normAimDragEnabled = f_aimDrag
                 self.normAimBodyEnabled = f_aimBody
                 self.normMagicEnabled   = f_magic
                 self.normCryptoricAimEnabled = f_crypt
-                self.maxAimEspEnabled   = m_aimEsp
+                self.normModMenuEnabled = f_mod
+                self.maxAimEspEnabled   = m_aimAshok
                 self.maxCryptoricAimEnabled = m_crypt
+                self.maxModMenuEnabled  = m_mod
             }
         }
     }
@@ -467,18 +473,22 @@ struct ContentView: View {
         } else if clean.contains("cryptoric") {
             targetFilename = "Cryptoric Aim.3105"
             b64 = PatchProjectLibrary.embeddedCryptoricAimBase64
+        } else if clean.contains("ffm") && (clean.contains("mode") || clean.contains("mod")) {
+            targetFilename = "MODE MENU FFM.3105"
+            b64 = PatchProjectLibrary.embeddedModeMenuFFMBase64
+        } else if clean.contains("mode") || clean.contains("mod") {
+            targetFilename = "MODE MENU.3105"
+            b64 = PatchProjectLibrary.embeddedModeMenuBase64
         } else {
-            targetFilename = "AIM+ESP.3105"
-            b64 = PatchProjectLibrary.embeddedAimEspBase64
+            targetFilename = "AIM+Ashok.3105"
+            b64 = PatchProjectLibrary.embeddedAimAshokBase64
         }
 
         if let root = try? PatchProjectLibrary.packageRootURL() {
             let fileURL = root.appendingPathComponent(targetFilename)
             if let data = (try? Data(contentsOf: fileURL)) ?? Data(base64Encoded: b64) {
                 if let summary = try? PatchPackageCodec.inspect(data) {
-                    let decoded = (try? PatchPackageCodec.decode(data, password: "XRE"))
-                        ?? (try? PatchPackageCodec.decode(data, password: "FLOCKER-DEV"))
-                        ?? (try? PatchPackageCodec.decode(data, password: nil))
+                    let decoded = try? PatchPackageCodec.decode(data, password: nil)
                     return PatchLibraryItem(
                         summary: summary,
                         project: decoded?.project ?? PatchProjectLibrary.getDecodedProject(for: packageFilename),
@@ -517,7 +527,7 @@ struct ContentView: View {
                 return found
             }
         }
-        if cleanTarget.contains("esp") || cleanTarget == "aim+esp" || cleanTarget.contains("cryptoric esp") {
+        if cleanTarget.contains("ashok") || cleanTarget.contains("esp") || cleanTarget == "aim+ashok" || cleanTarget == "aim+esp" || cleanTarget.contains("cryptoric ashok") || cleanTarget.contains("cryptoric esp") {
             let targetUUID = UUID(uuidString: "F0BEBA88-5C95-4F4C-B804-E825290ADF13")
             if let found = items.first(where: { $0.id == targetUUID }) {
                 return found
@@ -525,6 +535,18 @@ struct ContentView: View {
         }
         if cleanTarget.contains("cryptoric aim") || cleanTarget.contains("cryptoric") {
             let targetUUID = UUID(uuidString: "C60517A3-DBCE-4C28-829F-9E4B9C6D0FC1")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
+        if cleanTarget.contains("ffm") && (cleanTarget.contains("mode") || cleanTarget.contains("mod")) {
+            let targetUUID = UUID(uuidString: "50F75F5F-E17F-4F24-8721-0870E7304A95")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
+        if cleanTarget.contains("mode menu") || cleanTarget.contains("mod menu") || cleanTarget == "mode menu" {
+            let targetUUID = UUID(uuidString: "40F75F5F-E17F-4F24-8721-0870E7304A94")
             if let found = items.first(where: { $0.id == targetUUID }) {
                 return found
             }
@@ -592,8 +614,16 @@ struct ContentView: View {
             normAimBodyEnabled = enabled
         } else if lower.contains("magic") {
             normMagicEnabled = enabled
-        } else if lower.contains("esp") {
+        } else if lower.contains("ashok") || lower.contains("esp") {
             maxAimEspEnabled = enabled
+        } else if lower.contains("ffm") && (lower.contains("mode") || lower.contains("mod")) {
+            maxModMenuEnabled = enabled
+        } else if lower.contains("mode") || lower.contains("mod") {
+            if game == .normal {
+                normModMenuEnabled = enabled
+            } else {
+                maxModMenuEnabled = enabled
+            }
         } else if lower.contains("cryptoric") {
             if game == .normal {
                 normCryptoricAimEnabled = enabled
@@ -652,7 +682,7 @@ struct ContentView: View {
                         return
                     }
 
-                    let isMax = currentGame == .max || packageFilename.contains("ESP")
+                    let isMax = currentGame == .max || packageFilename.contains("Ashok") || packageFilename.contains("ESP") || packageFilename.contains("FFM")
                     let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
@@ -700,6 +730,7 @@ private struct PatchOptionCard: View {
     @Binding var isEnabled: Bool
     let isBusy: Bool
     let isLocked: Bool
+    var activeColor: Color = AppTheme.activeGreen
     let action: () -> Void
 
     var body: some View {
@@ -708,11 +739,11 @@ private struct PatchOptionCard: View {
                 HStack(alignment: .top) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(isEnabled ? AppTheme.activeGreen.opacity(0.18) : AppTheme.cardBackground)
+                            .fill(isEnabled ? activeColor.opacity(0.18) : AppTheme.cardBackground)
 
                         Image(systemName: iconName)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(isEnabled ? AppTheme.activeGreen : AppTheme.textPrimary)
+                            .foregroundStyle(isEnabled ? activeColor : AppTheme.textPrimary)
                     }
                     .frame(width: 38, height: 38)
                     .claymorphicCard(cornerRadius: 14, depth: isEnabled ? 2 : 4)
@@ -722,7 +753,7 @@ private struct PatchOptionCard: View {
                     // Toggle pill
                     ZStack(alignment: isEnabled ? .trailing : .leading) {
                         Capsule()
-                            .fill(isEnabled ? AppTheme.activeGreen : AppTheme.depressedBackground)
+                            .fill(isEnabled ? activeColor : AppTheme.depressedBackground)
                             .frame(width: 44, height: 24)
 
                         Circle()
@@ -742,7 +773,7 @@ private struct PatchOptionCard: View {
                     Text(target)
                         .font(.system(size: 9, weight: .semibold, design: .default))
                         .tracking(0.6)
-                        .foregroundStyle(isEnabled ? AppTheme.activeGreen : AppTheme.textSecondary)
+                        .foregroundStyle(isEnabled ? activeColor : AppTheme.textSecondary)
                         .lineLimit(1)
                 }
             }
@@ -755,7 +786,7 @@ private struct PatchOptionCard: View {
             .claymorphicCard(cornerRadius: 22, depth: isEnabled ? 3 : 6)
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(isEnabled ? AppTheme.activeGreen.opacity(0.55) : Color.clear, lineWidth: 1.5)
+                    .stroke(isEnabled ? activeColor.opacity(0.55) : Color.clear, lineWidth: 1.5)
             )
         }
         .buttonStyle(.plain)
