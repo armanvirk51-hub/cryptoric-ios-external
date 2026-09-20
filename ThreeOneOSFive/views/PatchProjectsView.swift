@@ -160,17 +160,10 @@ struct PatchProjectsView: View {
 
     @ViewBuilder
     private func itemRow(_ item: PatchLibraryItem) -> some View {
-        if item.isLocked {
-            Button { store.requestUnlock(for: item) } label: {
-                PatchProjectRow(item: item, language: language)
-            }
-            .buttonStyle(.plain)
-        } else {
-            NavigationLink {
-                PatchProjectDetailView(store: store, projectID: item.id)
-            } label: {
-                PatchProjectRow(item: item, language: language)
-            }
+        NavigationLink {
+            PatchProjectDetailView(store: store, projectID: item.id)
+        } label: {
+            PatchProjectRow(item: item, language: language)
         }
     }
 
@@ -216,22 +209,20 @@ private struct PatchProjectRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-                Image(systemName: item.isLocked ? "lock.doc.fill" : "puzzlepiece.fill")
+            Image(systemName: "puzzlepiece.fill")
+                .foregroundStyle(AppTheme.accent)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayName)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
-                Text(item.isLocked
-                     ? language.text("patch.tap_to_unlock")
-                     : language.text(
-                        item.summary.schemaVersion >= 2 ? "patch.workspace_items_count" : "patch.rules_count",
-                        Int64((item.project?.rules.count ?? 0) + (item.project?.directories.count ?? 0))
-                     ))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(language.text(
+                    item.summary.schemaVersion >= 2 ? "patch.workspace_items_count" : "patch.rules_count",
+                    Int64((item.project?.rules.count ?? 0) + (item.project?.directories.count ?? 0))
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Spacer()
-
         }
         .padding(.vertical, 4)
     }
