@@ -22,7 +22,7 @@ enum AppTheme {
     static let secondaryAccent = Color(red: 0.40, green: 0.44, blue: 0.50) // Slate accent
     static let activeGreen = Color(red: 0.15, green: 0.70, blue: 0.42) // Warm tactile active green
     static let activeGreenBg = Color(red: 0.15, green: 0.70, blue: 0.42).opacity(0.16)
-    static let espRed = Color(red: 0.90, green: 0.22, blue: 0.21) // Tactile red theme for Ashok/ESP
+    static let espRed = Color(red: 0.90, green: 0.22, blue: 0.21) // Tactile red theme for Cryptoric/ESP
 
     static let lightBlue = Color(red: 0.92, green: 0.94, blue: 0.96)
     static let consoleBackground = Color(red: 0.92, green: 0.91, blue: 0.89)
