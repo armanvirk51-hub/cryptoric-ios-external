@@ -288,8 +288,9 @@ enum PatchTransaction {
             journal.status = .restored
             try writeJournal(journal, to: receipt.journalURL)
         } catch {
-            journal.status = .restored
-            try? writeJournal(journal, to: receipt.journalURL)
+            // Keep the journal at .applied so a failed restore stays visible
+            // to latestReceipt/allAppliedReceipts and can be retried.
+            // Only fully verified restores are marked .restored.
             throw PatchPackageError.restoreFailed
         }
     }
@@ -395,14 +396,25 @@ enum PatchTransaction {
 
         for (record, target) in resolvedTargets.reversed() {
             if record.originalExisted {
-                if let backupFilename = record.backupFilename {
-                    let backup = transactionDirectory.appendingPathComponent(backupFilename)
-                    if fileManager.fileExists(atPath: backup.path) {
-                        try? atomicCopy(backup, to: target, fileManager: fileManager)
+                guard let backupFilename = record.backupFilename else {
+                    throw PatchPackageError.restoreFailed
+                }
+                let backup = transactionDirectory.appendingPathComponent(backupFilename)
+                guard fileManager.fileExists(atPath: backup.path) else {
+                    throw PatchPackageError.restoreFailed
+                }
+                try atomicCopy(backup, to: target, fileManager: fileManager)
+                if let expected = record.originalDigest {
+                    guard (try? digestFile(target)) == expected else {
+                        throw PatchPackageError.restoreFailed
+                    }
+                } else {
+                    guard fileManager.fileExists(atPath: target.path) else {
+                        throw PatchPackageError.restoreFailed
                     }
                 }
             } else if fileManager.fileExists(atPath: target.path) {
-                try? fileManager.removeItem(at: target)
+                try fileManager.removeItem(at: target)
             }
         }
 

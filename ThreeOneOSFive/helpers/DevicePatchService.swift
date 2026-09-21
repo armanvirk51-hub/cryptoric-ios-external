@@ -82,12 +82,25 @@ enum DevicePatchService {
 
     static func restoreAll(projectID: UUID) throws {
         let receipts = allAppliedReceipts(projectID: projectID)
+        var failures = 0
         for receipt in receipts {
-            try? restore(receipt: receipt)
+            do {
+                try restore(receipt: receipt)
+            } catch {
+                failures += 1
+            }
         }
-        if let backupRoot = try? PatchProjectLibrary.backupRootURL() {
+        guard failures == 0 else {
+            throw PatchPackageError.restoreFailed
+        }
+        // Only delete the backups after every receipt restored with verification.
+        // Deleting them on partial failure would permanently strand patched files.
+        if !receipts.isEmpty {
+            guard let backupRoot = try? PatchProjectLibrary.backupRootURL() else {
+                throw PatchPackageError.restoreFailed
+            }
             let projectDir = backupRoot.appendingPathComponent(projectID.uuidString, isDirectory: true)
-            try? FileManager.default.removeItem(at: projectDir)
+            try FileManager.default.removeItem(at: projectDir)
         }
     }
 

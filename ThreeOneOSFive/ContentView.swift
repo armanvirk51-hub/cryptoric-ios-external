@@ -698,11 +698,10 @@ struct ContentView: View {
                     result = .applied
                 }
             } catch {
-                if wasEnabled {
-                    result = .restored
-                } else {
-                    result = .unavailable("FAILED — \(error.localizedDescription)")
-                }
+                // A failed restore must stay visible as a failure: the toggle
+                // keeps its ON state so the user can retry instead of the app
+                // claiming "Restore Successful" while patched files remain.
+                result = .unavailable("FAILED — \(error.localizedDescription)")
             }
 
             DispatchQueue.main.async {
