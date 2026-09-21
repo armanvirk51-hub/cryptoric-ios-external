@@ -5,12 +5,15 @@ import AVFoundation
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showSettings = false
     @State private var showCleaner = false
     @StateObject private var patchStore = PatchProjectStore()
     @State private var patchOperationBusy = false
     @State private var patchMessage = "READY — SELECT A PATCH"
     @State private var selectedGame: GameMode = .normal
+    @State private var now = Date()
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     // FF Normal states
     @State private var normAimDragEnabled = false
     @State private var normAimBodyEnabled = false
@@ -57,6 +60,7 @@ struct ContentView: View {
         }
 
         .onAppear { syncPatchStates() }
+        .onReceive(timer) { input in self.now = input }
         .onChange(of: scenePhase) { phase in
             guard phase == .active, !patchOperationBusy else { return }
             syncPatchStates()
@@ -127,6 +131,12 @@ struct ContentView: View {
                     value: appState.isSupported ? "SUPPORTED" : "UNSUPPORTED",
                     icon: "checkmark.seal.fill",
                     valueColor: appState.isSupported ? AppTheme.activeGreen : Color.red
+                )
+                deviceDetailRow(
+                    label: "License Key",
+                    value: licenseManager.isActive ? licenseManager.formattedTimeRemaining(currentDate: now) : "NOT ACTIVATED",
+                    icon: "key.fill",
+                    valueColor: licenseManager.isActive ? AppTheme.activeGreen : Color.red
                 )
             }
         }

@@ -6,6 +6,9 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+    @State private var now = Date()
+    @State private var copiedKey = false
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
@@ -22,16 +25,72 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                Section("License") {
+                Section("License & Access") {
                     HStack {
-                        Text("Status")
+                        Label("Status", systemImage: "checkmark.shield.fill")
                         Spacer()
-                        Text(licenseManager.isActive ? "Activated" : "Not Activated")
-                            .foregroundStyle(licenseManager.isActive ? Color.green : Color.red)
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(licenseManager.isActive ? Color.green : Color.red)
+                                .frame(width: 8, height: 8)
+                            Text(licenseManager.isActive ? "Activated" : "Not Activated")
+                                .fontWeight(.semibold)
+                                .foregroundStyle(licenseManager.isActive ? Color.green : Color.red)
+                        }
                     }
+
                     if let key = licenseManager.rememberedKey(), !key.isEmpty {
-                        LabeledContent("Key", value: String(key.prefix(8)) + "...")
+                        HStack {
+                            Label("Key", systemImage: "key.fill")
+                            Spacer()
+                            Text(String(key.prefix(8)) + "...")
+                                .font(.system(.subheadline, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            Button {
+                                UIPasteboard.general.string = key
+                                copiedKey = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    copiedKey = false
+                                }
+                            } label: {
+                                Image(systemName: copiedKey ? "checkmark" : "doc.on.doc")
+                                    .font(.caption)
+                                    .foregroundStyle(copiedKey ? Color.green : AppTheme.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+
+                    HStack {
+                        Label("Expires On", systemImage: "calendar")
+                        Spacer()
+                        Text(licenseManager.formattedExpirationDate())
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Label("Time Left", systemImage: "clock.badge.checkmark.fill")
+                        Spacer()
+                        Text(licenseManager.formattedTimeRemaining(currentDate: now))
+                            .font(.system(.subheadline, design: .monospaced))
+                            .fontWeight(.bold)
+                            .foregroundStyle(licenseManager.isActive ? AppTheme.accent : Color.red)
+                    }
+
+                    Button {
+                        licenseManager.refresh()
+                    } label: {
+                        HStack {
+                            Label("Refresh Status", systemImage: "arrow.clockwise")
+                            Spacer()
+                            if licenseManager.isBusy {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+
                     Button(role: .destructive) {
                         licenseManager.deactivate()
                         dismiss()
@@ -93,6 +152,9 @@ struct SettingsView: View {
                     Button(language.text("common.done")) { dismiss() }
                         .fontWeight(.semibold)
                 }
+            }
+            .onReceive(timer) { input in
+                self.now = input
             }
         }
     }

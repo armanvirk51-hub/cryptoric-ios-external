@@ -34,6 +34,10 @@ final class LicenseManager: ObservableObject {
         let key = string(for: keyAccount) ?? UserDefaults.standard.string(forKey: "cryptoric_key")
         let isActivated = (string(for: activatedAccount) == "true") || UserDefaults.standard.bool(forKey: "cryptoric_activated")
 
+        if let ts = UserDefaults.standard.object(forKey: "cryptoric_expiration_timestamp") as? Double, ts > 0 {
+            expirationDate = Date(timeIntervalSince1970: ts)
+        }
+
         if let key, !key.isEmpty, isActivated {
             isActive = true
         } else {
@@ -62,6 +66,42 @@ final class LicenseManager: ObservableObject {
         return newHwid
     }
 
+    func formattedExpirationDate() -> String {
+        guard let expirationDate else {
+            return isActive ? "Lifetime License" : "No Expiry"
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: expirationDate)
+    }
+
+    func formattedTimeRemaining(currentDate: Date = Date()) -> String {
+        guard let expirationDate else {
+            return isActive ? "Unlimited / Lifetime" : "Inactive"
+        }
+        let interval = expirationDate.timeIntervalSince(currentDate)
+        if interval <= 0 {
+            return "Expired"
+        }
+
+        let totalSeconds = Int(interval)
+        let days = totalSeconds / 86400
+        let hours = (totalSeconds % 86400) / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+
+        if days > 0 {
+            return "\(days)d \(hours)h \(minutes)m \(seconds)s"
+        } else if hours > 0 {
+            return "\(hours)h \(minutes)m \(seconds)s"
+        } else if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s left"
+        }
+    }
+
     func beginLaunchSession() {
         guard let savedKey = rememberedKey(), !savedKey.isEmpty else {
             if isActive {
@@ -77,10 +117,9 @@ final class LicenseManager: ObservableObject {
                 let result = try await verifyLicense(key: savedKey)
                 if result.success {
                     // Check expiration date if present
-                    if let expStr = result.expires, let expTs = Double(expStr), expTs > 0 {
-                        let expDate = Date(timeIntervalSince1970: expTs)
-                        expirationDate = expDate
-                        if Date() > expDate {
+                    if let expStr = result.expires {
+                        parseAndSetExpiration(expStr)
+                        if let exp = expirationDate, Date() > exp {
                             deactivate()
                             message = "License has expired"
                             isBusy = false
@@ -116,10 +155,9 @@ final class LicenseManager: ObservableObject {
 
                 if result.success {
                     // Check expiry if present
-                    if let expStr = result.expires, let expTs = Double(expStr), expTs > 0 {
-                        let expDate = Date(timeIntervalSince1970: expTs)
-                        expirationDate = expDate
-                        if Date() > expDate {
+                    if let expStr = result.expires {
+                        parseAndSetExpiration(expStr)
+                        if let exp = expirationDate, Date() > exp {
                             deactivate()
                             message = "License has expired"
                             isBusy = false
@@ -141,12 +179,49 @@ final class LicenseManager: ObservableObject {
         }
     }
 
+    private func parseAndSetExpiration(_ expStr: String) {
+        let clean = expStr.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty || clean == "0" || clean.lowercased() == "false" || clean.lowercased() == "lifetime" {
+            expirationDate = nil
+            UserDefaults.standard.removeObject(forKey: "cryptoric_expiration_timestamp")
+            return
+        }
+
+        if let expTs = Double(clean), expTs > 0 {
+            let d = Date(timeIntervalSince1970: expTs)
+            expirationDate = d
+            UserDefaults.standard.set(expTs, forKey: "cryptoric_expiration_timestamp")
+            return
+        }
+
+        let iso = ISO8601DateFormatter()
+        if let d = iso.date(from: clean) {
+            expirationDate = d
+            UserDefaults.standard.set(d.timeIntervalSince1970, forKey: "cryptoric_expiration_timestamp")
+            return
+        }
+
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        for fmt in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd", "dd/MM/yyyy HH:mm:ss", "MM/dd/yyyy HH:mm:ss"] {
+            df.dateFormat = fmt
+            if let d = df.date(from: clean) {
+                expirationDate = d
+                UserDefaults.standard.set(d.timeIntervalSince1970, forKey: "cryptoric_expiration_timestamp")
+                return
+            }
+        }
+    }
+
     private func persistActivation(key: String) {
         if rememberKey {
             save(key, for: keyAccount)
             save("true", for: activatedAccount)
             UserDefaults.standard.set(key, forKey: "cryptoric_key")
             UserDefaults.standard.set(true, forKey: "cryptoric_activated")
+            if let exp = expirationDate {
+                UserDefaults.standard.set(exp.timeIntervalSince1970, forKey: "cryptoric_expiration_timestamp")
+            }
         }
     }
 
@@ -167,6 +242,7 @@ final class LicenseManager: ObservableObject {
         delete(activatedAccount)
         UserDefaults.standard.removeObject(forKey: "cryptoric_key")
         UserDefaults.standard.set(false, forKey: "cryptoric_activated")
+        UserDefaults.standard.removeObject(forKey: "cryptoric_expiration_timestamp")
         isActive  = false
         expirationDate = nil
         message   = "Activation removed from this device"
