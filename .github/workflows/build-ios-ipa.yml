@@ -12,77 +12,22 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
         with:
-          lfs: true
+          xcode-version: latest-stable
 
-      - name: Locate Xcode Project and Build
+      - name: Build Unsigned IPA
         run: |
-          set -euo pipefail
-          echo "=== Workspace contents ==="
-          ls -la .
-          echo ""
-
-          PROJECT_PATH="./ThreeOneOSFive.xcodeproj"
-          if [ ! -d "$PROJECT_PATH" ]; then
-            PROJECT_PATH=$(find . -name "*.xcodeproj" -not -path "./.git/*" 2>/dev/null | head -1 || true)
-          fi
-
-          if [ -z "$PROJECT_PATH" ]; then
-            echo "❌ ERROR: Could not locate .xcodeproj file!"
-            exit 1
-          fi
-
-          echo "✅ Located Xcode project: $PROJECT_PATH"
-
-          # Detect scheme from project list or fallback to Cryptoric
-          SCHEME="Cryptoric"
-          echo "✅ Using scheme: $SCHEME"
-
-          BUILD_DIR="$PWD/build"
-          ARCHIVE="$BUILD_DIR/Cryptoric.xcarchive"
-          IPA="$BUILD_DIR/Cryptoric-unsigned.ipa"
-          rm -rf "$BUILD_DIR" && mkdir -p "$BUILD_DIR"
-
-          echo "=== Building with xcodebuild ==="
-          xcodebuild \
-            -project "$PROJECT_PATH" \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath "$ARCHIVE" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY='' \
-            archive
-
-          APP=$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name "*.app" -type d | head -1 || true)
-          if [ -z "$APP" ]; then
-            echo "❌ ERROR: Could not locate .app in archive!"
-            exit 1
-          fi
-
-          PATCHES_SRC="ThreeOneOSFive/Patches"
-          if [ -d "$PATCHES_SRC" ]; then
-            mkdir -p "$APP/Patches"
-            cp -f "$PATCHES_SRC/"*.3105 "$APP/Patches/" 2>/dev/null || true
-            cp -f "$PATCHES_SRC/"*.3105 "$APP/" 2>/dev/null || true
-            echo "✅ Patches copied into app bundle"
-          fi
-
-          EXECUTABLE=$(basename "$APP" .app)
-          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $EXECUTABLE" "$APP/Info.plist" || true
-          /usr/libexec/PlistBuddy -c "Set :CFBundlePackageType APPL"     "$APP/Info.plist" || true
-
-          echo "=== Packaging IPA ==="
-          mkdir -p "$BUILD_DIR/Payload"
-          cp -R "$APP" "$BUILD_DIR/Payload/"
-          (cd "$BUILD_DIR" && zip -qry "$IPA" Payload && rm -rf Payload)
-          test -s "$IPA"
-          echo "✅ IPA ready: $IPA"
+          chmod +x build_unsigned.sh build_esign_ready_ipa.sh
+          ./build_unsigned.sh
+          ./build_esign_ready_ipa.sh build/Cryptoric-unsigned.ipa
 
       - name: Upload Finished IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Cryptoric-ESign-Ready-IPA
-          path: "**/build/Cryptoric-unsigned.ipa"
+          path: build/Cryptoric-unsigned.ipa
           retention-days: 7
+
