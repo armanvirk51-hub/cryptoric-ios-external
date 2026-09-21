@@ -45,8 +45,3 @@ fi
 echo "eSign-ready IPA verified: $IPA"
 echo "App bundle: $APP"
 echo "The IPA is unsigned and contains no embedded provisioning profile."
-
-
-
-
-

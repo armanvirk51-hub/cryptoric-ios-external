@@ -685,8 +685,3 @@
 	};
 	rootObject = 3105A900 /* Project object */;
 }
-
-
-
-
-
