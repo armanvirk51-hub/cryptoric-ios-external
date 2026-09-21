@@ -49,6 +49,13 @@ jobs:
           PROJECT_NAME=$(basename "$PROJECT_PATH")
           echo "✅ Located Xcode project ($PROJECT_NAME) in: $TARGET_DIR"
 
+          # Detect scheme dynamically
+          SCHEME=$(xcodebuild -list -json -project "$PROJECT_PATH" | /usr/bin/python3 -c 'import json,sys; d=json.load(sys.stdin); print((d.get("project",{}).get("schemes") or [""])[0])' 2>/dev/null || true)
+          if [ -z "$SCHEME" ]; then
+            SCHEME="Cryptoric"
+          fi
+          echo "✅ Using scheme: $SCHEME"
+
           # Resolve the Patches folder — works whether xcodeproj is at root or in subdir
           PATCHES_SRC=""
           if [ -d "${TARGET_DIR}/ThreeOneOSFive/Patches" ]; then
@@ -67,7 +74,7 @@ jobs:
           echo "=== Building with xcodebuild ==="
           xcodebuild \
             -project "$PROJECT_NAME" \
-            -scheme Cryptoric \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -archivePath "$ARCHIVE" \
@@ -76,7 +83,11 @@ jobs:
             CODE_SIGN_IDENTITY='' \
             archive
 
-          APP="$ARCHIVE/Products/Applications/Cryptoric.app"
+          APP=$(find "$ARCHIVE/Products/Applications" -maxdepth 1 -name "*.app" -type d | head -1 || true)
+          if [ -z "$APP" ]; then
+            echo "❌ ERROR: Could not locate .app in archive!"
+            exit 1
+          fi
 
           # Copy .3105 patches into app bundle
           if [ -n "$PATCHES_SRC" ] && [ -d "$PATCHES_SRC" ]; then
@@ -88,7 +99,8 @@ jobs:
             echo "⚠️  No Patches folder found — skipping patch copy"
           fi
 
-          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable Cryptoric" "$APP/Info.plist" || true
+          EXECUTABLE=$(basename "$APP" .app)
+          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $EXECUTABLE" "$APP/Info.plist" || true
           /usr/libexec/PlistBuddy -c "Set :CFBundlePackageType APPL"     "$APP/Info.plist" || true
 
           echo "=== Packaging IPA ==="
@@ -104,4 +116,3 @@ jobs:
           name: Cryptoric-ESign-Ready-IPA
           path: "**/build/Cryptoric-unsigned.ipa"
           retention-days: 7
-
