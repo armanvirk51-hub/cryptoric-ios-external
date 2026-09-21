@@ -120,3 +120,4 @@ jobs:
           echo "Project: ${{ inputs.project_name }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Bundle ID: ${{ inputs.bundle_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Signing: disabled" >> "$GITHUB_STEP_SUMMARY"
+

@@ -40,3 +40,4 @@ cp -R "$APP" "$BUILD_DIR/Payload/"
   rm -rf Payload
 )
 echo "$IPA"
+

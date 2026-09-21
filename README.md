@@ -25,3 +25,5 @@
 ```
 
 ثم استخدام GitHub Actions من خلال Workflow البناء الموجود في `.github/workflows/build.yml`.
+
+<!-- Updated timestamp: 2026-09-21 -->
