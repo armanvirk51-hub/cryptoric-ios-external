@@ -18,7 +18,9 @@ xcodebuild \
   -archivePath "$ARCHIVE" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY='' \
+  CODE_SIGN_STYLE=Manual \
+  CODE_SIGN_IDENTITY="" \
+  DEVELOPMENT_TEAM="" \
   archive
 
 APP="$ARCHIVE/Products/Applications/Cryptoric.app"
@@ -40,6 +42,4 @@ cp -R "$APP" "$BUILD_DIR/Payload/"
   rm -rf Payload
 )
 echo "$IPA"
-
-
 

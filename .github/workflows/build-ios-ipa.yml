@@ -13,39 +13,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Select Xcode 15
+      - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Build Unsigned Archive
+      - name: Build Unsigned IPA
         run: |
-          set -euo pipefail
-          mkdir -p build
-          xcodebuild \
-            -project "ThreeOneOSFive.xcodeproj" \
-            -scheme "Cryptoric" \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath "build/Cryptoric.xcarchive" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            archive
-
-      - name: Package Unsigned IPA
-        run: |
-          set -euo pipefail
-          APP="build/Cryptoric.xcarchive/Products/Applications/Cryptoric.app"
-          mkdir -p "$APP/Patches"
-          cp -f ThreeOneOSFive/Patches/*.3105 "$APP/Patches/" 2>/dev/null || true
-          cp -f ThreeOneOSFive/Patches/*.3105 "$APP/" 2>/dev/null || true
-          
-          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable Cryptoric" "$APP/Info.plist" || true
-          /usr/libexec/PlistBuddy -c "Set :CFBundlePackageType APPL"     "$APP/Info.plist" || true
-
-          mkdir -p build/Payload
-          cp -R "$APP" build/Payload/
-          (cd build && zip -qry "Cryptoric-unsigned.ipa" Payload && rm -rf Payload)
-          echo "IPA ready at build/Cryptoric-unsigned.ipa"
+          chmod +x build_unsigned.sh build_esign_ready_ipa.sh
+          ./build_unsigned.sh
+          ./build_esign_ready_ipa.sh build/Cryptoric-unsigned.ipa
 
       - name: Upload Finished IPA Artifact
         uses: actions/upload-artifact@v4
