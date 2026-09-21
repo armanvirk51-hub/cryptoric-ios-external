@@ -48,36 +48,34 @@ struct PatchProjectsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                AppSearchField(
-                    text: $searchText,
-                    prompt: language.text("patch.search"),
-                    clearLabel: language.text("common.clear")
-                )
-                Divider()
-                List {
+            ZStack {
+                AnimatedHyperBackdrop()
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    AppSearchField(
+                        text: $searchText,
+                        prompt: language.text("patch.search"),
+                        clearLabel: language.text("common.clear")
+                    )
+                    .padding(.top, 8)
+
                     if store.items.isEmpty && !store.isBusy {
                         emptyState
-                            .listRowSeparator(.hidden)
                     } else if filteredItems.isEmpty && !store.isBusy {
                         searchEmptyState
-                            .listRowSeparator(.hidden)
                     } else {
-                        ForEach(filteredItems) { item in
-                            itemRow(item)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .fill(AppTheme.referenceCard)
-                                        .padding(.vertical, 5)
-                                )
-                        }
-                        .onDelete { offsets in
-                            offsets.map { filteredItems[$0] }.forEach(store.delete)
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(spacing: 12) {
+                                ForEach(filteredItems) { item in
+                                    itemRow(item)
+                                }
+                            }
+                            .padding(.horizontal, AppTheme.pageInset)
+                            .padding(.vertical, 12)
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
             }
             .navigationTitle(language.text("patch.title"))
             .navigationBarTitleDisplayMode(.inline)
@@ -99,6 +97,10 @@ struct PatchProjectsView: View {
                             ProgressView()
                         } else {
                             Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .frame(width: 34, height: 34)
+                                .claymorphicCircle(depth: 4)
                         }
                     }
                     .disabled(store.isBusy)
@@ -164,42 +166,79 @@ struct PatchProjectsView: View {
             PatchProjectDetailView(store: store, projectID: item.id)
         } label: {
             PatchProjectRow(item: item, language: language)
+                .padding(14)
+                .claymorphicCard(cornerRadius: 20, depth: 6)
+        }
+        .buttonStyle(.plain)
+        .claymorphicButtonPress()
+        .contextMenu {
+            Button(role: .destructive) {
+                store.delete(item)
+            } label: {
+                Label(language.text("common.delete"), systemImage: "trash")
+            }
         }
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "shippingbox")
-                .font(.system(size: AppTheme.emptyIconSize, weight: .light))
-                .foregroundStyle(AppTheme.accent)
+        VStack(spacing: 16) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(AppTheme.cardBackground)
+                    .frame(width: 80, height: 80)
+                    .claymorphicCircle(depth: 8)
+                Image(systemName: "shippingbox")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+            }
             Text(language.text("patch.empty_title"))
-                .font(.headline)
+                .font(.system(size: 18, weight: .bold, design: .default))
+                .foregroundStyle(AppTheme.textPrimary)
             Text(language.text("patch.empty_message"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .medium, design: .default))
+                .foregroundStyle(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
-            Button(language.text("patch.new")) { showCreate = true }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+                .padding(.horizontal, 32)
+            Button {
+                showCreate = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                    Text(language.text("patch.new"))
+                        .font(.system(size: 14, weight: .bold, design: .default))
+                }
+                .foregroundStyle(AppTheme.textPrimary)
+                .padding(.horizontal, 22)
+                .padding(.vertical, 12)
+                .claymorphicCard(cornerRadius: 16, depth: 6)
+            }
+            .claymorphicButtonPress()
+            .padding(.top, 8)
+            Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 64)
+        .padding(.vertical, 32)
     }
 
     private var searchEmptyState: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
+            Spacer()
             Image(systemName: "magnifyingglass")
-                .font(.system(size: AppTheme.emptyIconSize, weight: .light))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 32, weight: .light))
+                .foregroundStyle(AppTheme.textSecondary)
             Text(language.text("patch.search_empty"))
-                .font(.headline)
+                .font(.system(size: 16, weight: .bold, design: .default))
+                .foregroundStyle(AppTheme.textPrimary)
             Text(language.text("patch.search_empty_message"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .medium, design: .default))
+                .foregroundStyle(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 64)
+        .padding(.vertical, 32)
     }
 }
 
@@ -208,26 +247,36 @@ private struct PatchProjectRow: View {
     let language: AppLanguage
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "puzzlepiece.fill")
-                .foregroundStyle(AppTheme.accent)
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(AppTheme.depressedBackground)
+                Image(systemName: "puzzlepiece.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(AppTheme.accent)
+            }
+            .frame(width: 42, height: 42)
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item.displayName)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .bold, design: .default))
+                    .foregroundStyle(AppTheme.textPrimary)
                 Text(language.text(
                     item.summary.schemaVersion >= 2 ? "patch.workspace_items_count" : "patch.rules_count",
                     Int64((item.project?.rules.count ?? 0) + (item.project?.directories.count ?? 0))
                 ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12, weight: .medium, design: .default))
+                .foregroundStyle(AppTheme.textSecondary)
             }
+
             Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppTheme.textMuted)
         }
-        .padding(.vertical, 4)
     }
 }
-
 
 private struct PatchProjectDetailView: View {
     @Environment(\.appLanguage) private var language
@@ -254,98 +303,193 @@ private struct PatchProjectDetailView: View {
     }
 
     var body: some View {
-        List {
-            if let item, let project = item.project {
-                if isWorkspaceProject {
-                    Section {
-                        ForEach(project.allBundleIdentifiers, id: \.self) { bundleID in
-                            Label {
-                                Text(bundleID)
-                                    .font(.subheadline.monospaced())
-                            } icon: {
-                                Image(systemName: "app.dashed")
-                                    .foregroundStyle(AppTheme.accent)
-                            }
-                        }
-                        LabeledContent(language.text("patch.files")) {
-                            Text("\(project.rules.count)")
-                        }
-                        LabeledContent(language.text("patch.folders")) {
-                            Text("\(project.directories.count)")
-                        }
-                        if let workspaceURL = item.workspaceURL {
-                            NavigationLink {
-                                FileBrowserView(
-                                    containerPath: workspaceURL.path,
-                                    title: item.displayName,
-                                    bundleID: nil
-                                )
-                            } label: {
-                                Label(
-                                    language.text("patch.open_workspace"),
-                                    systemImage: "folder"
-                                )
-                            }
-                        }
-                    } header: {
-                        Text(language.text("patch.workspace"))
-                    } footer: {
-                        Text(language.text("patch.workspace_detail_footer"))
-                    }
-                } else {
-                    Section {
-                        ForEach(project.rules) { rule in
-                            Button {
-                                editingRule = rule
-                            } label: {
-                                HStack(spacing: 10) {
-                                    ruleSummary(rule)
-                                    Spacer(minLength: 8)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.tertiary)
+        ZStack {
+            AnimatedHyperBackdrop()
+                .ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    if let item, let project = item.project {
+                        // Header summary card
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .fill(AppTheme.depressedBackground)
+                                    Image(systemName: isWorkspaceProject ? "folder.badge.gearshape" : "slider.horizontal.3")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(AppTheme.accent)
                                 }
-                                .contentShape(Rectangle())
+                                .frame(width: 50, height: 50)
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.displayName)
+                                        .font(.system(size: 18, weight: .bold, design: .default))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    Text(isWorkspaceProject ? "WORKSPACE PATCH" : "DIRECT PATCH")
+                                        .font(.system(size: 10, weight: .bold, design: .default))
+                                        .tracking(1.4)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                                Spacer()
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityHint(language.text("patch.edit_rule_hint"))
+
+                            Divider()
+                                .padding(.vertical, 4)
+
+                            if isWorkspaceProject {
+                                VStack(spacing: 8) {
+                                    ForEach(project.allBundleIdentifiers, id: \.self) { bundleID in
+                                        HStack {
+                                            Label {
+                                                Text(bundleID)
+                                                    .font(.system(size: 12, weight: .medium).monospaced())
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                            } icon: {
+                                                Image(systemName: "app.dashed")
+                                                    .foregroundStyle(AppTheme.accent)
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .claymorphicDepression(cornerRadius: 10)
+                                    }
+
+                                    HStack {
+                                        Text(language.text("patch.files"))
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Spacer()
+                                        Text("\(project.rules.count)")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                    }
+                                    .padding(.horizontal, 4)
+
+                                    HStack {
+                                        Text(language.text("patch.folders"))
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Spacer()
+                                        Text("\(project.directories.count)")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                    }
+                                    .padding(.horizontal, 4)
+
+                                    if let workspaceURL = item.workspaceURL {
+                                        NavigationLink {
+                                            FileBrowserView(
+                                                containerPath: workspaceURL.path,
+                                                title: item.displayName,
+                                                bundleID: nil
+                                            )
+                                        } label: {
+                                            HStack {
+                                                Image(systemName: "folder.fill")
+                                                    .foregroundStyle(AppTheme.accent)
+                                                Text(language.text("patch.open_workspace"))
+                                                    .font(.system(size: 13, weight: .bold))
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                Spacer()
+                                                Image(systemName: "chevron.right")
+                                                    .font(.system(size: 11, weight: .bold))
+                                                    .foregroundStyle(AppTheme.textMuted)
+                                            }
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 10)
+                                            .claymorphicDepression(cornerRadius: 12)
+                                        }
+                                    }
+                                }
+                            } else {
+                                VStack(spacing: 8) {
+                                    ForEach(project.rules) { rule in
+                                        Button {
+                                            editingRule = rule
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                ruleSummary(rule)
+                                                Spacer(minLength: 8)
+                                                Image(systemName: "chevron.right")
+                                                    .font(.caption.weight(.semibold))
+                                                    .foregroundStyle(AppTheme.textMuted)
+                                            }
+                                            .padding(10)
+                                            .claymorphicDepression(cornerRadius: 12)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityHint(language.text("patch.edit_rule_hint"))
+                                    }
+                                }
+                            }
                         }
-                    } header: {
-                        Text(language.text("patch.rules"))
-                    } footer: {
-                        Text(language.text("patch.legacy_footer"))
+                        .padding(18)
+                        .claymorphicCard(cornerRadius: 24, depth: 8)
+
+                        // Actions card
+                        VStack(spacing: 12) {
+                            Button {
+                                showApplyConfirmation = true
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark.shield.fill")
+                                        .font(.system(size: 15, weight: .bold))
+                                    Text(language.text("patch.apply"))
+                                        .font(.system(size: 14, weight: .bold, design: .default))
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity, minHeight: 46)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .fill(AppTheme.activeGreen)
+                                        .shadow(color: AppTheme.activeGreen.opacity(0.4), radius: 6, x: 0, y: 3)
+                                )
+                            }
+                            .disabled(isWorking)
+                            .claymorphicButtonPress()
+
+                            if receipt != nil {
+                                Button {
+                                    showRestoreConfirmation = true
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "arrow.uturn.backward.circle.fill")
+                                            .font(.system(size: 15, weight: .bold))
+                                        Text(language.text("patch.restore"))
+                                            .font(.system(size: 14, weight: .bold, design: .default))
+                                    }
+                                    .foregroundStyle(Color.red)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .claymorphicDepression(cornerRadius: 14)
+                                }
+                                .disabled(isWorking)
+                                .claymorphicButtonPress()
+                            }
+
+                            Button(action: prepareExport) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text(language.text("patch.export"))
+                                        .font(.system(size: 13, weight: .bold, design: .default))
+                                }
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .frame(maxWidth: .infinity, minHeight: 42)
+                                .claymorphicDepression(cornerRadius: 14)
+                            }
+                            .disabled(isWorking)
+                            .claymorphicButtonPress()
+                        }
+                        .padding(18)
+                        .claymorphicCard(cornerRadius: 24, depth: 8)
                     }
                 }
-
-
-
-                Section {
-                    Button {
-                        showApplyConfirmation = true
-                    } label: {
-                        actionLabel("patch.apply", systemImage: "checkmark.shield.fill")
-                    }
-                    .disabled(isWorking)
-
-                    if receipt != nil {
-                        Button(role: .destructive) {
-                            showRestoreConfirmation = true
-                        } label: {
-                            actionLabel("patch.restore", systemImage: "arrow.uturn.backward.circle")
-                        }
-                        .disabled(isWorking)
-                    }
-
-                    Button(action: prepareExport) {
-                        actionLabel("patch.export", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(isWorking)
-                } footer: {
-                    Text(language.text("patch.apply_footer"))
-                }
+                .padding(.horizontal, AppTheme.pageInset)
+                .padding(.vertical, 16)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle(item?.displayName ?? language.text("patch.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -354,6 +498,8 @@ private struct PatchProjectDetailView: View {
                     ProgressView()
                 } else if !isWorkspaceProject {
                     Button(language.text("patch.edit")) { showEditor = true }
+                        .fontWeight(.bold)
+                        .foregroundStyle(AppTheme.textPrimary)
                         .disabled(item?.project == nil)
                 }
             }
@@ -403,25 +549,19 @@ private struct PatchProjectDetailView: View {
         }
     }
 
-    private func actionLabel(_ key: String, systemImage: String) -> some View {
-        Label(language.text(key), systemImage: systemImage)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func ruleSummary(_ rule: PatchRule) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(rule.bundleID)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(AppTheme.textPrimary)
             Text(rule.relativePath)
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .medium).monospaced())
+                .foregroundStyle(AppTheme.textSecondary)
                 .lineLimit(2)
             Label(rule.replacementFilename, systemImage: "arrow.triangle.2.circlepath")
-                .font(.caption)
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(AppTheme.accent)
         }
-        .padding(.vertical, 3)
     }
 
     private func projectForEditor(_ project: PatchProject, displayName: String) -> PatchProject {
