@@ -21,50 +21,22 @@ jobs:
           echo "=== Workspace contents ==="
           ls -la .
           echo ""
-          echo "=== Locating Xcode Project ==="
 
-          # macOS find does NOT support -quit; use head -1 instead
-          PROJECT_PATH=$(find . -name "*.xcodeproj" -not -path "./.git/*" 2>/dev/null | head -1 || true)
-
-          if [ -z "$PROJECT_PATH" ]; then
-            echo "No .xcodeproj found directly. Searching for zip files..."
-            ZIP_PATH=$(find . -not -path "./.git/*" -not -path "./.github/*" -name "*.zip" 2>/dev/null | sort | head -1 || true)
-            if [ -n "$ZIP_PATH" ]; then
-              echo "✅ Found zip: $ZIP_PATH"
-              echo "Extracting with ditto..."
-              ditto -x -k "$ZIP_PATH" .
-              echo "✅ Extraction complete!"
-              PROJECT_PATH=$(find . -name "*.xcodeproj" -not -path "./.git/*" 2>/dev/null | head -1 || true)
-            fi
+          PROJECT_PATH="./ThreeOneOSFive.xcodeproj"
+          if [ ! -d "$PROJECT_PATH" ]; then
+            PROJECT_PATH=$(find . -name "*.xcodeproj" -not -path "./.git/*" 2>/dev/null | head -1 || true)
           fi
 
           if [ -z "$PROJECT_PATH" ]; then
             echo "❌ ERROR: Could not locate .xcodeproj file!"
-            echo "=== Full directory listing ==="
-            find . -not -path "./.git/*" -maxdepth 4 | head -60
             exit 1
           fi
 
-          TARGET_DIR=$(dirname "$PROJECT_PATH")
-          PROJECT_NAME=$(basename "$PROJECT_PATH")
-          echo "✅ Located Xcode project ($PROJECT_NAME) in: $TARGET_DIR"
+          echo "✅ Located Xcode project: $PROJECT_PATH"
 
-          # Detect scheme dynamically
-          SCHEME=$(xcodebuild -list -json -project "$PROJECT_PATH" | /usr/bin/python3 -c 'import json,sys; d=json.load(sys.stdin); print((d.get("project",{}).get("schemes") or [""])[0])' 2>/dev/null || true)
-          if [ -z "$SCHEME" ]; then
-            SCHEME="Cryptoric"
-          fi
+          # Detect scheme from project list or fallback to Cryptoric
+          SCHEME="Cryptoric"
           echo "✅ Using scheme: $SCHEME"
-
-          # Resolve the Patches folder — works whether xcodeproj is at root or in subdir
-          PATCHES_SRC=""
-          if [ -d "${TARGET_DIR}/ThreeOneOSFive/Patches" ]; then
-            PATCHES_SRC="${TARGET_DIR}/ThreeOneOSFive/Patches"
-          elif [ -d "ThreeOneOSFive/Patches" ]; then
-            PATCHES_SRC="ThreeOneOSFive/Patches"
-          fi
-
-          cd "$TARGET_DIR"
 
           BUILD_DIR="$PWD/build"
           ARCHIVE="$BUILD_DIR/Cryptoric.xcarchive"
@@ -73,7 +45,7 @@ jobs:
 
           echo "=== Building with xcodebuild ==="
           xcodebuild \
-            -project "$PROJECT_NAME" \
+            -project "$PROJECT_PATH" \
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
@@ -89,14 +61,12 @@ jobs:
             exit 1
           fi
 
-          # Copy .3105 patches into app bundle
-          if [ -n "$PATCHES_SRC" ] && [ -d "$PATCHES_SRC" ]; then
+          PATCHES_SRC="ThreeOneOSFive/Patches"
+          if [ -d "$PATCHES_SRC" ]; then
             mkdir -p "$APP/Patches"
             cp -f "$PATCHES_SRC/"*.3105 "$APP/Patches/" 2>/dev/null || true
             cp -f "$PATCHES_SRC/"*.3105 "$APP/" 2>/dev/null || true
             echo "✅ Patches copied into app bundle"
-          else
-            echo "⚠️  No Patches folder found — skipping patch copy"
           fi
 
           EXECUTABLE=$(basename "$APP" .app)
