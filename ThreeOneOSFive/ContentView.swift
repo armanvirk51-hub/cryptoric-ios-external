@@ -20,10 +20,17 @@ struct ContentView: View {
     @State private var normMagicEnabled = false
     @State private var normCryptoricAimEnabled = false
     @State private var normModMenuEnabled = false
+    @State private var normAimChetsHsEnabled = false
+    @State private var normAimNheTamEnabled = false
     // FF MAX states
     @State private var maxAimEspEnabled = false
     @State private var maxCryptoricAimEnabled = false
     @State private var maxModMenuEnabled = false
+    @State private var maxAimBodyHsEnabled = false
+    @State private var maxAimChetsHsEnabled = false
+    @State private var maxAimMagic360Enabled = false
+    @State private var maxAimNeckHsEnabled = false
+    @State private var maxAimNheTamEnabled = false
 
     private enum GameMode: String, CaseIterable {
         case normal = "FF NORMAL"
@@ -201,6 +208,8 @@ struct ContentView: View {
                     patchCard(name: "Magic Bullet", target: "FREE FIRE • NORMAL", package: "MAGICM.3105", icon: "wand.and.stars", state: $normMagicEnabled)
                     patchCard(name: "Cryptoric Aim", target: "FREE FIRE • NORMAL", package: "Cryptoric Aim.3105", icon: "scope", state: $normCryptoricAimEnabled)
                     patchCard(name: "Mode Menu", target: "FREE FIRE • NORMAL", package: "MODE MENU.3105", icon: "slider.horizontal.3", state: $normModMenuEnabled)
+                    patchCard(name: "Aim Chets HS", target: "FREE FIRE • NORMAL", package: "AIM CHETS HS FFTH.3105", icon: "scope", state: $normAimChetsHsEnabled)
+                    patchCard(name: "Aim NheTam", target: "FREE FIRE • NORMAL", package: "AIM NHE TAM FFTH.3105", icon: "viewfinder", state: $normAimNheTamEnabled)
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • NORMAL", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -209,6 +218,11 @@ struct ContentView: View {
                     patchCard(name: "Cryptoric", target: "FREE FIRE • MAX", package: "AIM+Ashok.3105", icon: "eye.trianglebadge.exclamationmark", state: $maxAimEspEnabled, activeColor: AppTheme.espRed)
                     patchCard(name: "Cryptoric Aim", target: "FREE FIRE • MAX", package: "Cryptoric Aim.3105", icon: "scope", state: $maxCryptoricAimEnabled)
                     patchCard(name: "Mode Menu", target: "FREE FIRE • MAX", package: "MODE MENU FFM.3105", icon: "slider.horizontal.3", state: $maxModMenuEnabled)
+                    patchCard(name: "Aim Body HS", target: "FREE FIRE • MAX", package: "AIM BODY HS FFMAX.3105", icon: "person.fill.viewfinder", state: $maxAimBodyHsEnabled)
+                    patchCard(name: "Aim Chets HS", target: "FREE FIRE • MAX", package: "AIM CHETS HS FFMAX.3105", icon: "scope", state: $maxAimChetsHsEnabled)
+                    patchCard(name: "Aim Magic 360", target: "FREE FIRE • MAX", package: "AIM MAGIC 360- FFMAX.3105", icon: "wand.and.stars", state: $maxAimMagic360Enabled)
+                    patchCard(name: "Aim Neck HS", target: "FREE FIRE • MAX", package: "AIM NECK HS FFMAX.3105", icon: "scope", state: $maxAimNeckHsEnabled)
+                    patchCard(name: "Aim NheTam", target: "FREE FIRE • MAX", package: "AIM NHE TAM FFMAX.3105", icon: "viewfinder", state: $maxAimNheTamEnabled)
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • MAX", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -441,9 +455,17 @@ struct ContentView: View {
             let f_magic   = self.isPatchActive("MAGICM.3105", forGame: .normal)
             let f_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .normal)
             let f_mod     = self.isPatchActive("MODE MENU.3105", forGame: .normal)
-            let m_aimAshok = self.isPatchActive("AIM+Ashok.3105", forGame: .max) || self.isPatchActive("AIM+ESP.3105", forGame: .max)
-            let m_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .max)
-            let m_mod     = self.isPatchActive("MODE MENU FFM.3105", forGame: .max)
+            let f_aimChetsHs = self.isPatchActive("AIM CHETS HS FFTH.3105", forGame: .normal)
+            let f_aimNheTam  = self.isPatchActive("AIM NHE TAM FFTH.3105", forGame: .normal)
+
+            let m_aimAshok   = self.isPatchActive("AIM+Ashok.3105", forGame: .max) || self.isPatchActive("AIM+ESP.3105", forGame: .max)
+            let m_crypt      = self.isPatchActive("Cryptoric Aim.3105", forGame: .max)
+            let m_mod        = self.isPatchActive("MODE MENU FFM.3105", forGame: .max)
+            let m_aimBodyHs  = self.isPatchActive("AIM BODY HS FFMAX.3105", forGame: .max)
+            let m_aimChetsHs = self.isPatchActive("AIM CHETS HS FFMAX.3105", forGame: .max)
+            let m_aimMagic360 = self.isPatchActive("AIM MAGIC 360- FFMAX.3105", forGame: .max)
+            let m_aimNeckHs  = self.isPatchActive("AIM NECK HS FFMAX.3105", forGame: .max)
+            let m_aimNheTam  = self.isPatchActive("AIM NHE TAM FFMAX.3105", forGame: .max)
 
             DispatchQueue.main.async {
                 self.normAimDragEnabled = f_aimDrag
@@ -451,9 +473,17 @@ struct ContentView: View {
                 self.normMagicEnabled   = f_magic
                 self.normCryptoricAimEnabled = f_crypt
                 self.normModMenuEnabled = f_mod
-                self.maxAimEspEnabled   = m_aimAshok
+                self.normAimChetsHsEnabled = f_aimChetsHs
+                self.normAimNheTamEnabled  = f_aimNheTam
+
+                self.maxAimEspEnabled      = m_aimAshok
                 self.maxCryptoricAimEnabled = m_crypt
-                self.maxModMenuEnabled  = m_mod
+                self.maxModMenuEnabled     = m_mod
+                self.maxAimBodyHsEnabled   = m_aimBodyHs
+                self.maxAimChetsHsEnabled  = m_aimChetsHs
+                self.maxAimMagic360Enabled = m_aimMagic360
+                self.maxAimNeckHsEnabled   = m_aimNeckHs
+                self.maxAimNheTamEnabled   = m_aimNheTam
             }
         }
     }
@@ -471,7 +501,28 @@ struct ContentView: View {
 
         let targetFilename: String
         let b64: String
-        if clean.contains("drag") {
+        if clean.contains("aim body hs") {
+            targetFilename = "AIM BODY HS FFMAX.3105"
+            b64 = PatchProjectLibrary.embeddedAimBodyHsFFMaxBase64
+        } else if clean.contains("aim chets hs ffmax") {
+            targetFilename = "AIM CHETS HS FFMAX.3105"
+            b64 = PatchProjectLibrary.embeddedAimChetsHsFFMaxBase64
+        } else if clean.contains("magic 360") {
+            targetFilename = "AIM MAGIC 360- FFMAX.3105"
+            b64 = PatchProjectLibrary.embeddedAimMagic360FFMaxBase64
+        } else if clean.contains("aim neck hs") {
+            targetFilename = "AIM NECK HS FFMAX.3105"
+            b64 = PatchProjectLibrary.embeddedAimNeckHsFFMaxBase64
+        } else if clean.contains("aim nhe tam ffmax") {
+            targetFilename = "AIM NHE TAM FFMAX.3105"
+            b64 = PatchProjectLibrary.embeddedAimNheTamFFMaxBase64
+        } else if clean.contains("aim chets hs ffth") {
+            targetFilename = "AIM CHETS HS FFTH.3105"
+            b64 = PatchProjectLibrary.embeddedAimChetsHsFFNormBase64
+        } else if clean.contains("aim nhe tam ffth") {
+            targetFilename = "AIM NHE TAM FFTH.3105"
+            b64 = PatchProjectLibrary.embeddedAimNheTamFFNormBase64
+        } else if clean.contains("drag") {
             targetFilename = "DRAGM.3105"
             b64 = PatchProjectLibrary.embeddedDragMBase64
         } else if clean.contains("body") || clean.contains("obb") {
@@ -618,7 +669,21 @@ struct ContentView: View {
         UserDefaults.standard.set(enabled, forKey: gameKey)
         UserDefaults.standard.set(enabled, forKey: "patch_active_" + packageFilename)
 
-        if lower.contains("drag") {
+        if packageFilename == "AIM BODY HS FFMAX.3105" || lower.contains("aim body hs") {
+            maxAimBodyHsEnabled = enabled
+        } else if packageFilename == "AIM CHETS HS FFMAX.3105" || lower.contains("aim chets hs ffmax") {
+            maxAimChetsHsEnabled = enabled
+        } else if packageFilename == "AIM MAGIC 360- FFMAX.3105" || lower.contains("magic 360") {
+            maxAimMagic360Enabled = enabled
+        } else if packageFilename == "AIM NECK HS FFMAX.3105" || lower.contains("aim neck hs") {
+            maxAimNeckHsEnabled = enabled
+        } else if packageFilename == "AIM NHE TAM FFMAX.3105" || lower.contains("aim nhe tam ffmax") {
+            maxAimNheTamEnabled = enabled
+        } else if packageFilename == "AIM CHETS HS FFTH.3105" || lower.contains("aim chets hs ffth") {
+            normAimChetsHsEnabled = enabled
+        } else if packageFilename == "AIM NHE TAM FFTH.3105" || lower.contains("aim nhe tam ffth") {
+            normAimNheTamEnabled = enabled
+        } else if lower.contains("drag") {
             normAimDragEnabled = enabled
         } else if lower.contains("body") || lower.contains("obb") {
             normAimBodyEnabled = enabled
@@ -692,7 +757,7 @@ struct ContentView: View {
                         return
                     }
 
-                    let isMax = currentGame == .max || packageFilename.contains("Ashok") || packageFilename.contains("ESP") || packageFilename.contains("FFM")
+                    let isMax = currentGame == .max || packageFilename.contains("Ashok") || packageFilename.contains("ESP") || packageFilename.contains("FFM") || packageFilename.contains("FFMAX")
                     let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
