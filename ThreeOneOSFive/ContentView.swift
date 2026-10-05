@@ -23,9 +23,6 @@ struct ContentView: View {
     @State private var normAimChetsHsEnabled = false
     @State private var normAimNheTamEnabled = false
     // FF MAX states
-    @State private var maxAimEspEnabled = false
-    @State private var maxCryptoricAimEnabled = false
-    @State private var maxModMenuEnabled = false
     @State private var maxAimBodyHsEnabled = false
     @State private var maxAimChetsHsEnabled = false
     @State private var maxAimMagic360Enabled = false
@@ -203,21 +200,18 @@ struct ContentView: View {
             // Grid of rounded feature cards
             if selectedGame == .normal {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    patchCard(name: "Aim Drag", target: "FREE FIRE • NORMAL", package: "DRAGM.3105", icon: "scope", state: $normAimDragEnabled)
-                    patchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", package: "AIM BODY.3105", icon: "person.fill.viewfinder", state: $normAimBodyEnabled)
-                    patchCard(name: "Magic Bullet", target: "FREE FIRE • NORMAL", package: "MAGICM.3105", icon: "wand.and.stars", state: $normMagicEnabled)
-                    patchCard(name: "Cryptoric Aim", target: "FREE FIRE • NORMAL", package: "Cryptoric Aim.3105", icon: "scope", state: $normCryptoricAimEnabled)
-                    patchCard(name: "Mode Menu", target: "FREE FIRE • NORMAL", package: "MODE MENU.3105", icon: "slider.horizontal.3", state: $normModMenuEnabled)
-                    patchCard(name: "Aim Chets HS", target: "FREE FIRE • NORMAL", package: "AIM CHETS HS FFTH.3105", icon: "scope", state: $normAimChetsHsEnabled)
-                    patchCard(name: "Aim NheTam", target: "FREE FIRE • NORMAL", package: "AIM NHE TAM FFTH.3105", icon: "viewfinder", state: $normAimNheTamEnabled)
+                    lockedPatchCard(name: "Aim Drag", target: "FREE FIRE • NORMAL", icon: "scope")
+                    lockedPatchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", icon: "person.fill.viewfinder")
+                    lockedPatchCard(name: "Magic Bullet", target: "FREE FIRE • NORMAL", icon: "wand.and.stars")
+                    lockedPatchCard(name: "Cryptoric Aim", target: "FREE FIRE • NORMAL", icon: "scope")
+                    lockedPatchCard(name: "Mode Menu", target: "FREE FIRE • NORMAL", icon: "slider.horizontal.3")
+                    lockedPatchCard(name: "Aim Chets HS", target: "FREE FIRE • NORMAL", icon: "scope")
+                    lockedPatchCard(name: "Aim NheTam", target: "FREE FIRE • NORMAL", icon: "viewfinder")
                     lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • NORMAL", icon: "cube.transparent")
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    patchCard(name: "Cryptoric", target: "FREE FIRE • MAX", package: "AIM+Ashok.3105", icon: "eye.trianglebadge.exclamationmark", state: $maxAimEspEnabled, activeColor: AppTheme.espRed)
-                    patchCard(name: "Cryptoric Aim", target: "FREE FIRE • MAX", package: "Cryptoric Aim.3105", icon: "scope", state: $maxCryptoricAimEnabled)
-                    patchCard(name: "Mode Menu", target: "FREE FIRE • MAX", package: "MODE MENU FFM.3105", icon: "slider.horizontal.3", state: $maxModMenuEnabled)
                     patchCard(name: "Aim Body HS", target: "FREE FIRE • MAX", package: "AIM BODY HS FFMAX.3105", icon: "person.fill.viewfinder", state: $maxAimBodyHsEnabled)
                     patchCard(name: "Aim Chets HS", target: "FREE FIRE • MAX", package: "AIM CHETS HS FFMAX.3105", icon: "scope", state: $maxAimChetsHsEnabled)
                     patchCard(name: "Aim Magic 360", target: "FREE FIRE • MAX", package: "AIM MAGIC 360- FFMAX.3105", icon: "wand.and.stars", state: $maxAimMagic360Enabled)
@@ -458,9 +452,6 @@ struct ContentView: View {
             let f_aimChetsHs = self.isPatchActive("AIM CHETS HS FFTH.3105", forGame: .normal)
             let f_aimNheTam  = self.isPatchActive("AIM NHE TAM FFTH.3105", forGame: .normal)
 
-            let m_aimAshok   = self.isPatchActive("AIM+Ashok.3105", forGame: .max) || self.isPatchActive("AIM+ESP.3105", forGame: .max)
-            let m_crypt      = self.isPatchActive("Cryptoric Aim.3105", forGame: .max)
-            let m_mod        = self.isPatchActive("MODE MENU FFM.3105", forGame: .max)
             let m_aimBodyHs  = self.isPatchActive("AIM BODY HS FFMAX.3105", forGame: .max)
             let m_aimChetsHs = self.isPatchActive("AIM CHETS HS FFMAX.3105", forGame: .max)
             let m_aimMagic360 = self.isPatchActive("AIM MAGIC 360- FFMAX.3105", forGame: .max)
@@ -476,9 +467,6 @@ struct ContentView: View {
                 self.normAimChetsHsEnabled = f_aimChetsHs
                 self.normAimNheTamEnabled  = f_aimNheTam
 
-                self.maxAimEspEnabled      = m_aimAshok
-                self.maxCryptoricAimEnabled = m_crypt
-                self.maxModMenuEnabled     = m_mod
                 self.maxAimBodyHsEnabled   = m_aimBodyHs
                 self.maxAimChetsHsEnabled  = m_aimChetsHs
                 self.maxAimMagic360Enabled = m_aimMagic360
@@ -689,21 +677,13 @@ struct ContentView: View {
             normAimBodyEnabled = enabled
         } else if lower.contains("magic") {
             normMagicEnabled = enabled
-        } else if lower.contains("ashok") || lower.contains("esp") {
-            maxAimEspEnabled = enabled
-        } else if lower.contains("ffm") && (lower.contains("mode") || lower.contains("mod")) {
-            maxModMenuEnabled = enabled
         } else if lower.contains("mode") || lower.contains("mod") {
             if game == .normal {
                 normModMenuEnabled = enabled
-            } else {
-                maxModMenuEnabled = enabled
             }
         } else if lower.contains("cryptoric") {
             if game == .normal {
                 normCryptoricAimEnabled = enabled
-            } else {
-                maxCryptoricAimEnabled = enabled
             }
         }
     }
