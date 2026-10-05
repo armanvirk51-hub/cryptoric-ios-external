@@ -272,7 +272,7 @@ struct ContentView: View {
 
     private func lockedPatchCard(name: String, target: String, icon: String) -> some View {
         PatchOptionCard(name: name, target: target, iconName: icon, isEnabled: .constant(false), isBusy: false, isLocked: true) {
-            patchMessage = "\(name) — IN DEVELOPMENT FOR NEXT UPDATE"
+            patchMessage = "\(name) — COMING SOON"
         }
     }
 
@@ -804,17 +804,34 @@ private struct PatchOptionCard: View {
 
                     Spacer()
 
-                    // Toggle pill
-                    ZStack(alignment: isEnabled ? .trailing : .leading) {
-                        Capsule()
-                            .fill(isEnabled ? activeColor : AppTheme.depressedBackground)
-                            .frame(width: 44, height: 24)
+                    // Toggle pill or lock badge
+                    if isLocked {
+                        HStack(spacing: 4) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 8, weight: .bold))
+                            Text("COMING SOON")
+                                .font(.system(size: 8, weight: .bold, design: .default))
+                                .tracking(0.5)
+                        }
+                        .foregroundStyle(Color.orange)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.orange.opacity(0.15))
+                        )
+                    } else {
+                        ZStack(alignment: isEnabled ? .trailing : .leading) {
+                            Capsule()
+                                .fill(isEnabled ? activeColor : AppTheme.depressedBackground)
+                                .frame(width: 44, height: 24)
 
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 18, height: 18)
-                            .padding(.horizontal, 3)
-                            .shadow(color: Color.black.opacity(0.18), radius: 2, x: 0, y: 1.5)
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 18, height: 18)
+                                .padding(.horizontal, 3)
+                                .shadow(color: Color.black.opacity(0.18), radius: 2, x: 0, y: 1.5)
+                        }
                     }
                 }
 
@@ -824,10 +841,10 @@ private struct PatchOptionCard: View {
                         .foregroundStyle(AppTheme.textPrimary)
                         .lineLimit(1)
 
-                    Text(target)
+                    Text(isLocked ? "COMING SOON" : target)
                         .font(.system(size: 9, weight: .semibold, design: .default))
                         .tracking(0.6)
-                        .foregroundStyle(isEnabled ? activeColor : AppTheme.textSecondary)
+                        .foregroundStyle(isLocked ? Color.orange.opacity(0.8) : (isEnabled ? activeColor : AppTheme.textSecondary))
                         .lineLimit(1)
                 }
             }
@@ -845,6 +862,6 @@ private struct PatchOptionCard: View {
         }
         .buttonStyle(.plain)
         .disabled(isBusy || isLocked)
-        .opacity(isLocked ? 0.45 : 1.0)
+        .opacity(isLocked ? 0.62 : 1.0)
     }
 }
