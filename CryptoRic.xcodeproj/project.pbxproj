@@ -1,4 +1,5 @@
 // !$*UTF8*$!
+// Cryptoric — updated 2026-10-05
 {
 	archiveVersion = 1;
 	classes = {

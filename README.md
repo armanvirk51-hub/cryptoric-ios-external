@@ -26,4 +26,4 @@
 
 ثم استخدام GitHub Actions من خلال Workflow البناء الموجود في `.github/workflows/build.yml`.
 
-<!-- Updated timestamp: 2026-09-21 -->
+<!-- Updated: 2026-10-05 — FF Normal locked (COMING SOON), FF Max cleaned -->
