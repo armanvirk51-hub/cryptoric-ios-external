@@ -23,11 +23,9 @@ struct ContentView: View {
     @State private var normAimChetsHsEnabled = false
     @State private var normAimNheTamEnabled = false
     // FF MAX states
-    @State private var maxAimBodyHsEnabled = false
-    @State private var maxAimChetsHsEnabled = false
     @State private var maxAimMagic360Enabled = false
-    @State private var maxAimNeckHsEnabled = false
     @State private var maxAimNheTamEnabled = false
+    @State private var maxGuestResetEnabled = false
 
     private enum GameMode: String, CaseIterable {
         case normal = "FF NORMAL"
@@ -69,6 +67,12 @@ struct ContentView: View {
             guard phase == .active, !patchOperationBusy else { return }
             syncPatchStates()
             patchMessage = "READY — SELECT A PATCH"
+        }
+        .onChange(of: licenseManager.isActive) { active in
+            if !active {
+                // License expired or paused — remove all applied patches
+                restoreAllMaxPatches()
+            }
         }
     }
 
@@ -212,12 +216,9 @@ struct ContentView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    patchCard(name: "Aim Body HS", target: "FREE FIRE • MAX", package: "AIM BODY HS FFMAX.3105", icon: "person.fill.viewfinder", state: $maxAimBodyHsEnabled)
-                    patchCard(name: "Aim Chets HS", target: "FREE FIRE • MAX", package: "AIM CHETS HS FFMAX.3105", icon: "scope", state: $maxAimChetsHsEnabled)
                     patchCard(name: "Aim Magic 360", target: "FREE FIRE • MAX", package: "AIM MAGIC 360- FFMAX.3105", icon: "wand.and.stars", state: $maxAimMagic360Enabled)
-                    patchCard(name: "Aim Neck HS", target: "FREE FIRE • MAX", package: "AIM NECK HS FFMAX.3105", icon: "scope", state: $maxAimNeckHsEnabled)
-                    patchCard(name: "Aim NheTam", target: "FREE FIRE • MAX", package: "AIM NHE TAM FFMAX.3105", icon: "viewfinder", state: $maxAimNheTamEnabled)
-                    lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • MAX", icon: "cube.transparent")
+                    patchCard(name: "Aim Head", target: "FREE FIRE • MAX", package: "AIM NHE TAM FFMAX.3105", icon: "viewfinder", state: $maxAimNheTamEnabled)
+                    patchCard(name: "Guest Reset", target: "FREE FIRE • MAX", package: "Reset Acc FFM.3105", icon: "person.crop.circle.badge.xmark", state: $maxGuestResetEnabled)
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -442,36 +443,46 @@ struct ContentView: View {
 
     // MARK: - Logic & Patch Handlers
     private func syncPatchStates() {
-        let items = patchStore.items
+        guard licenseManager.isActive else {
+            // License not active — restore all applied FF Max patches and reset states
+            restoreAllMaxPatches()
+            return
+        }
         DispatchQueue.global(qos: .userInitiated).async {
-            let f_aimDrag = self.isPatchActive("DRAGM.3105", forGame: .normal)
-            let f_aimBody = self.isPatchActive("AIM BODY.3105", forGame: .normal)
-            let f_magic   = self.isPatchActive("MAGICM.3105", forGame: .normal)
-            let f_crypt   = self.isPatchActive("Cryptoric Aim.3105", forGame: .normal)
-            let f_mod     = self.isPatchActive("MODE MENU.3105", forGame: .normal)
-            let f_aimChetsHs = self.isPatchActive("AIM CHETS HS FFTH.3105", forGame: .normal)
-            let f_aimNheTam  = self.isPatchActive("AIM NHE TAM FFTH.3105", forGame: .normal)
-
-            let m_aimBodyHs  = self.isPatchActive("AIM BODY HS FFMAX.3105", forGame: .max)
-            let m_aimChetsHs = self.isPatchActive("AIM CHETS HS FFMAX.3105", forGame: .max)
-            let m_aimMagic360 = self.isPatchActive("AIM MAGIC 360- FFMAX.3105", forGame: .max)
-            let m_aimNeckHs  = self.isPatchActive("AIM NECK HS FFMAX.3105", forGame: .max)
-            let m_aimNheTam  = self.isPatchActive("AIM NHE TAM FFMAX.3105", forGame: .max)
+            let m_aimMagic360  = self.isPatchActive("AIM MAGIC 360- FFMAX.3105", forGame: .max)
+            let m_aimNheTam    = self.isPatchActive("AIM NHE TAM FFMAX.3105", forGame: .max)
+            let m_guestReset   = self.isPatchActive("Reset Acc FFM.3105", forGame: .max)
 
             DispatchQueue.main.async {
-                self.normAimDragEnabled = f_aimDrag
-                self.normAimBodyEnabled = f_aimBody
-                self.normMagicEnabled   = f_magic
-                self.normCryptoricAimEnabled = f_crypt
-                self.normModMenuEnabled = f_mod
-                self.normAimChetsHsEnabled = f_aimChetsHs
-                self.normAimNheTamEnabled  = f_aimNheTam
-
-                self.maxAimBodyHsEnabled   = m_aimBodyHs
-                self.maxAimChetsHsEnabled  = m_aimChetsHs
                 self.maxAimMagic360Enabled = m_aimMagic360
-                self.maxAimNeckHsEnabled   = m_aimNeckHs
                 self.maxAimNheTamEnabled   = m_aimNheTam
+                self.maxGuestResetEnabled  = m_guestReset
+            }
+        }
+    }
+
+    /// Restores (removes) all applied FF Max patches when the license is inactive/expired.
+    private func restoreAllMaxPatches() {
+        let maxPackages = [
+            "AIM MAGIC 360- FFMAX.3105",
+            "AIM NHE TAM FFMAX.3105",
+            "Reset Acc FFM.3105"
+        ]
+        DispatchQueue.global(qos: .background).async {
+            for pkg in maxPackages {
+                if let item = self.findPatchItem(for: pkg),
+                   DevicePatchService.latestReceipt(projectID: item.id) != nil {
+                    try? DevicePatchService.restoreAll(projectID: item.id)
+                }
+                let gameKey = "patch_active_\(GameMode.max.rawValue)_" + pkg
+                UserDefaults.standard.set(false, forKey: gameKey)
+                UserDefaults.standard.set(false, forKey: "patch_active_" + pkg)
+            }
+            DispatchQueue.main.async {
+                self.maxAimMagic360Enabled = false
+                self.maxAimNheTamEnabled   = false
+                self.maxGuestResetEnabled  = false
+                self.patchMessage          = "LICENSE INACTIVE — ALL PATCHES REMOVED"
             }
         }
     }
@@ -501,6 +512,9 @@ struct ContentView: View {
         } else if clean.contains("aim neck hs") {
             targetFilename = "AIM NECK HS FFMAX.3105"
             b64 = PatchProjectLibrary.embeddedAimNeckHsFFMaxBase64
+        } else if clean.contains("reset acc ffm") || clean.contains("reset acc") {
+            targetFilename = "Reset Acc FFM.3105"
+            b64 = PatchProjectLibrary.embeddedResetAccFFMBase64
         } else if clean.contains("aim nhe tam ffmax") {
             targetFilename = "AIM NHE TAM FFMAX.3105"
             b64 = PatchProjectLibrary.embeddedAimNheTamFFMaxBase64
@@ -657,34 +671,12 @@ struct ContentView: View {
         UserDefaults.standard.set(enabled, forKey: gameKey)
         UserDefaults.standard.set(enabled, forKey: "patch_active_" + packageFilename)
 
-        if packageFilename == "AIM BODY HS FFMAX.3105" || lower.contains("aim body hs") {
-            maxAimBodyHsEnabled = enabled
-        } else if packageFilename == "AIM CHETS HS FFMAX.3105" || lower.contains("aim chets hs ffmax") {
-            maxAimChetsHsEnabled = enabled
-        } else if packageFilename == "AIM MAGIC 360- FFMAX.3105" || lower.contains("magic 360") {
+        if packageFilename == "AIM MAGIC 360- FFMAX.3105" || lower.contains("magic 360") {
             maxAimMagic360Enabled = enabled
-        } else if packageFilename == "AIM NECK HS FFMAX.3105" || lower.contains("aim neck hs") {
-            maxAimNeckHsEnabled = enabled
         } else if packageFilename == "AIM NHE TAM FFMAX.3105" || lower.contains("aim nhe tam ffmax") {
             maxAimNheTamEnabled = enabled
-        } else if packageFilename == "AIM CHETS HS FFTH.3105" || lower.contains("aim chets hs ffth") {
-            normAimChetsHsEnabled = enabled
-        } else if packageFilename == "AIM NHE TAM FFTH.3105" || lower.contains("aim nhe tam ffth") {
-            normAimNheTamEnabled = enabled
-        } else if lower.contains("drag") {
-            normAimDragEnabled = enabled
-        } else if lower.contains("body") || lower.contains("obb") {
-            normAimBodyEnabled = enabled
-        } else if lower.contains("magic") {
-            normMagicEnabled = enabled
-        } else if lower.contains("mode") || lower.contains("mod") {
-            if game == .normal {
-                normModMenuEnabled = enabled
-            }
-        } else if lower.contains("cryptoric") {
-            if game == .normal {
-                normCryptoricAimEnabled = enabled
-            }
+        } else if packageFilename == "Reset Acc FFM.3105" || lower.contains("reset acc ffm") {
+            maxGuestResetEnabled = enabled
         }
     }
 
