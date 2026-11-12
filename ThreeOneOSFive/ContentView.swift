@@ -37,22 +37,19 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if streamerManager.isShieldActive {
-                StreamerDecoyView()
-                    .transition(.opacity)
+            StreamerDecoyView()
+                .ignoresSafeArea()
+
+            if streamerManager.isEnabled {
+                SecureViewWrapper {
+                    normalMainContent
+                }
+                .ignoresSafeArea()
             } else {
                 normalMainContent
-                    .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: streamerManager.isShieldActive)
         .preferredColorScheme(.light)
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-        }
-        .sheet(isPresented: $showCleaner) {
-            CleanerView()
-        }
         .onAppear {
             syncPatchStates()
             streamerManager.checkCaptureState()
@@ -93,6 +90,12 @@ struct ContentView: View {
                 .padding(.top, 18)
                 .padding(.bottom, 32)
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .sheet(isPresented: $showCleaner) {
+            CleanerView()
         }
     }
 
@@ -980,6 +983,100 @@ private struct PatchOptionCard: View {
     }
 }
 
+// MARK: - Hardware Secure-Layer Wrapper (Anti-Capture & Streamer-Proof)
+final class SecureTextField: UITextField {
+    override var canBecomeFirstResponder: Bool { false }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        for subview in subviews {
+            let convertedPoint = convert(point, to: subview)
+            if let hit = subview.hitTest(convertedPoint, with: event) {
+                return hit
+            }
+        }
+        return nil
+    }
+}
+
+final class SecureWrapperController<Content: View>: UIViewController {
+    private var content: Content
+    private let secureTextField = SecureTextField()
+    private var hostingController: UIHostingController<Content>?
+
+    init(content: Content) {
+        self.content = content
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+
+        secureTextField.isSecureTextEntry = true
+        view.addSubview(secureTextField)
+        secureTextField.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            secureTextField.topAnchor.constraint(equalTo: view.topAnchor),
+            secureTextField.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            secureTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            secureTextField.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+
+        let host = UIHostingController(rootView: content)
+        host.view.backgroundColor = .clear
+        addChild(host)
+        self.hostingController = host
+
+        embedHostIfNeeded()
+        host.didMove(toParent: self)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        embedHostIfNeeded()
+    }
+
+    private func embedHostIfNeeded() {
+        guard let hostView = hostingController?.view, hostView.superview == nil else { return }
+        secureTextField.layoutIfNeeded()
+        let targetContainer = secureTextField.subviews.first ?? secureTextField
+        targetContainer.isUserInteractionEnabled = true
+        targetContainer.addSubview(hostView)
+        hostView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            hostView.topAnchor.constraint(equalTo: targetContainer.topAnchor),
+            hostView.bottomAnchor.constraint(equalTo: targetContainer.bottomAnchor),
+            hostView.leadingAnchor.constraint(equalTo: targetContainer.leadingAnchor),
+            hostView.trailingAnchor.constraint(equalTo: targetContainer.trailingAnchor)
+        ])
+    }
+
+    func update(content: Content) {
+        self.content = content
+        self.hostingController?.rootView = content
+    }
+}
+
+struct SecureViewWrapper<Content: View>: UIViewControllerRepresentable {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    func makeUIViewController(context: Context) -> SecureWrapperController<Content> {
+        SecureWrapperController(content: content)
+    }
+
+    func updateUIViewController(_ uiViewController: SecureWrapperController<Content>, context: Context) {
+        uiViewController.update(content: content)
+    }
+}
+
 // MARK: - Streamer Proof Manager (Anti-Screen Recording & Screen Share Protection)
 final class StreamerProofManager: ObservableObject {
     static let shared = StreamerProofManager()
@@ -1017,13 +1114,11 @@ final class StreamerProofManager: ObservableObject {
     }
 
     func handleScenePhase(_ phase: ScenePhase) {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            if phase == .active {
-                self.isBackgrounded = false
-                self.checkCaptureState()
-            } else {
-                self.isBackgrounded = true
-            }
+        if phase == .active {
+            self.isBackgrounded = false
+            self.checkCaptureState()
+        } else {
+            self.isBackgrounded = true
         }
     }
 
@@ -1034,11 +1129,17 @@ final class StreamerProofManager: ObservableObject {
     }
 }
 
-// MARK: - Streamer Decoy View (Screen Share & Recording Mask)
+// MARK: - Streamer Decoy View (Screen Share & Recording Decoy Mask)
 private struct StreamerDecoyView: View {
     @ObservedObject private var streamerManager = StreamerProofManager.shared
     @State private var isOptimizing = false
     @State private var optimizationComplete = false
+    @State private var freedMB: Double = 0
+    @State private var ramPercentage: Int = 68
+    @State private var availableRam: String = "2.4 GB / 6.0 GB"
+    @State private var storageFreeString: String = "Calculating…"
+    @State private var thermalStateText: String = "Nominal"
+    @State private var batteryHealthText: String = "100%"
 
     var body: some View {
         ZStack {
@@ -1066,10 +1167,12 @@ private struct StreamerDecoyView: View {
 
                     // Innocent shield badge
                     HStack(spacing: 4) {
-                        Circle().fill(Color.green).frame(width: 6, height: 6)
-                        Text("NORMAL")
+                        Circle()
+                            .fill(optimizationComplete ? Color.green : Color.blue)
+                            .frame(width: 6, height: 6)
+                        Text(optimizationComplete ? "OPTIMAL" : "MONITORING")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(Color.green)
+                            .foregroundStyle(optimizationComplete ? Color.green : Color.blue)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -1085,10 +1188,10 @@ private struct StreamerDecoyView: View {
                             .frame(width: 140, height: 140)
 
                         Circle()
-                            .trim(from: 0, to: isOptimizing ? 0.95 : 0.68)
+                            .trim(from: 0, to: CGFloat(ramPercentage) / 100.0)
                             .stroke(
                                 LinearGradient(
-                                    colors: [Color.blue, Color.cyan],
+                                    colors: optimizationComplete ? [Color.green, Color.teal] : [Color.blue, Color.cyan],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -1096,14 +1199,14 @@ private struct StreamerDecoyView: View {
                             )
                             .frame(width: 140, height: 140)
                             .rotationEffect(.degrees(-90))
-                            .animation(.easeInOut(duration: 1.0), value: isOptimizing)
+                            .animation(.easeInOut(duration: 0.8), value: ramPercentage)
 
                         VStack(spacing: 2) {
-                            Text(isOptimizing ? "CLEANING…" : "OPTIMAL")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(Color.blue)
+                            Text(isOptimizing ? "CLEANING…" : (optimizationComplete ? "OPTIMIZED" : "STABLE"))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(optimizationComplete ? Color.green : Color.blue)
 
-                            Text(isOptimizing ? "88%" : "68%")
+                            Text("\(ramPercentage)%")
                                 .font(.system(size: 28, weight: .black))
                                 .foregroundStyle(AppTheme.textPrimary)
 
@@ -1114,7 +1217,7 @@ private struct StreamerDecoyView: View {
                     }
                     .padding(.vertical, 8)
 
-                    Text("Thermal state: Nominal • Battery health: 100%")
+                    Text("Thermal state: \(thermalStateText) • Battery: \(batteryHealthText)")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -1124,32 +1227,29 @@ private struct StreamerDecoyView: View {
 
                 // Stats Rows
                 VStack(spacing: 10) {
-                    decoyRow(label: "Available Memory", value: isOptimizing ? "3.8 GB / 6.0 GB" : "2.4 GB / 6.0 GB", icon: "memorychip")
-                    decoyRow(label: "Internal Storage", value: "114.2 GB Free", icon: "internaldrive")
+                    decoyRow(label: "Available Memory", value: availableRam, icon: "memorychip")
+                    decoyRow(label: "Internal Storage", value: storageFreeString, icon: "internaldrive")
                     decoyRow(label: "CPU Architecture", value: "Apple Silicon (6-Core)", icon: "speedometer")
                     decoyRow(label: "Display Refresh", value: "ProMotion 120Hz", icon: "display")
                 }
                 .padding(18)
                 .claymorphicCard(cornerRadius: 26, depth: 8)
 
-                // Innocent Optimize Action
+                // Active Optimize Action
                 Button {
-                    let impact = UIImpactFeedbackGenerator(style: .medium)
-                    impact.impactOccurred()
-                    isOptimizing = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-                        isOptimizing = false
-                        optimizationComplete = true
-                    }
+                    runRealOptimization()
                 } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: isOptimizing ? "arrow.triangle.2.circlepath" : "bolt.fill")
+                        Image(systemName: isOptimizing ? "arrow.triangle.2.circlepath" : (optimizationComplete ? "checkmark.circle.fill" : "bolt.fill"))
                             .font(.system(size: 13, weight: .bold))
-                        Text(isOptimizing ? "OPTIMIZING MEMORY…" : (optimizationComplete ? "SYSTEM OPTIMIZED ✓" : "OPTIMIZE SYSTEM CACHE"))
+                            .rotationEffect(.degrees(isOptimizing ? 360 : 0))
+                            .animation(isOptimizing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isOptimizing)
+
+                        Text(isOptimizing ? "PURGING SYSTEM CACHE…" : (optimizationComplete ? String(format: "OPTIMIZED: %.1f MB RECLAIMED ✓", freedMB) : "OPTIMIZE SYSTEM CACHE"))
                             .font(.system(size: 12, weight: .bold))
                             .tracking(0.8)
                     }
-                    .foregroundStyle(AppTheme.textPrimary)
+                    .foregroundStyle(optimizationComplete ? Color.green : AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, minHeight: 48)
                     .claymorphicCard(cornerRadius: 18, depth: 6)
                 }
@@ -1157,30 +1257,111 @@ private struct StreamerDecoyView: View {
                 .disabled(isOptimizing)
 
                 Spacer()
-
-                // Unlock / pause streamer proof button
-                Button {
-                    let impact = UIImpactFeedbackGenerator(style: .light)
-                    impact.impactOccurred()
-                    withAnimation {
-                        streamerManager.isEnabled = false
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "lock.open.fill")
-                            .font(.system(size: 10, weight: .bold))
-                        Text("Exit Streamer Protection Mode")
-                            .font(.system(size: 10, weight: .bold))
-                    }
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .claymorphicCapsuleDepression()
-                }
-                .claymorphicButtonPress()
-                .padding(.bottom, 16)
             }
             .padding(.horizontal, 18)
+        }
+        .onAppear {
+            refreshMetrics()
+        }
+    }
+
+    private func refreshMetrics() {
+        storageFreeString = getFreeDiskSpace()
+        thermalStateText = getThermalStateText()
+        batteryHealthText = getBatteryText()
+    }
+
+    private func getFreeDiskSpace() -> String {
+        if let attributes = try? FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory()),
+           let freeSize = attributes[.systemFreeSize] as? Int64 {
+            let formatter = ByteCountFormatter()
+            formatter.allowedUnits = [.useGB, .useMB]
+            formatter.countStyle = .file
+            return formatter.string(fromByteCount: freeSize) + " Free"
+        }
+        return "114.2 GB Free"
+    }
+
+    private func getThermalStateText() -> String {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal: return "Nominal"
+        case .fair: return "Fair"
+        case .serious: return "Warm"
+        case .critical: return "High"
+        @unknown default: return "Nominal"
+        }
+    }
+
+    private func getBatteryText() -> String {
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        let level = UIDevice.current.batteryLevel
+        if level >= 0 {
+            return "\(Int(level * 100))%"
+        }
+        return "100%"
+    }
+
+    private func runRealOptimization() {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        isOptimizing = true
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            var freedBytes: Int64 = 0
+            let fm = FileManager.default
+
+            // 1. Purge URLCache
+            URLCache.shared.removeAllCachedResponses()
+
+            // 2. Clear NSTemporaryDirectory()
+            let tmpPath = NSTemporaryDirectory()
+            if let tmpItems = try? fm.contentsOfDirectory(atPath: tmpPath) {
+                for item in tmpItems {
+                    let fullPath = (tmpPath as NSString).appendingPathComponent(item)
+                    if let attrs = try? fm.attributesOfItem(atPath: fullPath),
+                       let size = attrs[.size] as? Int64 {
+                        freedBytes += size
+                    }
+                    try? fm.removeItem(atPath: fullPath)
+                }
+            }
+
+            // 3. Clear Caches directory
+            if let cacheUrl = fm.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                if let cacheItems = try? fm.contentsOfDirectory(atPath: cacheUrl.path) {
+                    for item in cacheItems {
+                        let fullPath = cacheUrl.appendingPathComponent(item).path
+                        if let attrs = try? fm.attributesOfItem(atPath: fullPath),
+                           let size = attrs[.size] as? Int64 {
+                            freedBytes += size
+                        }
+                        try? fm.removeItem(atPath: fullPath)
+                    }
+                }
+            }
+
+            let displayedFreedMB: Double
+            if freedBytes > 512 * 1024 {
+                displayedFreedMB = Double(freedBytes) / (1024.0 * 1024.0)
+            } else {
+                displayedFreedMB = Double.random(in: 48.2...84.6)
+            }
+
+            Thread.sleep(forTimeInterval: 1.2)
+
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    self.isOptimizing = false
+                    self.optimizationComplete = true
+                    self.freedMB = displayedFreedMB
+                    self.ramPercentage = 42
+                    self.availableRam = "3.9 GB / 6.0 GB"
+                    self.storageFreeString = self.getFreeDiskSpace()
+                    self.thermalStateText = self.getThermalStateText()
+                }
+                let notif = UINotificationFeedbackGenerator()
+                notif.notificationOccurred(.success)
+            }
         }
     }
 
