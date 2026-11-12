@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var maxAimMagic360Enabled = false
     @State private var maxAimNheTamEnabled = false
     @State private var maxGuestResetEnabled = false
+    @StateObject private var streamerManager = StreamerProofManager.shared
 
     private enum GameMode: String, CaseIterable {
         case normal = "FF NORMAL"
@@ -36,23 +37,15 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            AnimatedHyperBackdrop()
-                .ignoresSafeArea()
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    brandHeader
-                    devicePanel
-                    patchOptions
-                    gameLaunchPanel
-                    footerStatus
-                    developerCredits
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-                .padding(.bottom, 32)
+            if streamerManager.isShieldActive {
+                StreamerDecoyView()
+                    .transition(.opacity)
+            } else {
+                normalMainContent
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: streamerManager.isShieldActive)
         .preferredColorScheme(.light)
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -60,10 +53,13 @@ struct ContentView: View {
         .sheet(isPresented: $showCleaner) {
             CleanerView()
         }
-
-        .onAppear { syncPatchStates() }
+        .onAppear {
+            syncPatchStates()
+            streamerManager.checkCaptureState()
+        }
         .onReceive(timer) { input in self.now = input }
         .onChange(of: scenePhase) { phase in
+            streamerManager.handleScenePhase(phase)
             guard phase == .active, !patchOperationBusy else { return }
             syncPatchStates()
             patchMessage = "READY — SELECT A PATCH"
@@ -76,34 +72,150 @@ struct ContentView: View {
         }
     }
 
+    private var normalMainContent: some View {
+        ZStack {
+            AnimatedHyperBackdrop()
+                .ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    brandHeader
+                    if streamerManager.isEnabled {
+                        streamerShieldBanner
+                    }
+                    devicePanel
+                    patchOptions
+                    gameLaunchPanel
+                    footerStatus
+                    developerCredits
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 32)
+            }
+        }
+    }
+
     // MARK: - Header
     private var brandHeader: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Cryptoric")
-                    .font(.system(size: 26, weight: .bold, design: .default))
-                    .tracking(1.2)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("PATCH CONTROL CENTER")
-                    .font(.system(size: 10, weight: .semibold, design: .default))
-                    .tracking(2.0)
+        HStack(spacing: 12) {
+            // New App Logo in claymorphic container
+            ZStack {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(AppTheme.cardBackground)
+                    .shadow(color: AppTheme.clayDarkShadow, radius: 5, x: 2.5, y: 3.5)
+                    .shadow(color: AppTheme.clayLightShadow, radius: 4, x: -2.5, y: -2.5)
+
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+            }
+            .frame(width: 50, height: 50)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text("Cryptoric")
+                        .font(.system(size: 24, weight: .black, design: .default))
+                        .tracking(0.6)
+                        .foregroundStyle(AppTheme.textPrimary)
+
+                    // VIP Badge
+                    HStack(spacing: 3) {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 8, weight: .bold))
+                        Text("PRO")
+                            .font(.system(size: 8, weight: .black))
+                    }
+                    .foregroundStyle(Color(red: 0.85, green: 0.60, blue: 0.10))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 0.95, green: 0.85, blue: 0.45).opacity(0.28))
+                    )
+                }
+
+                Text("EXTERNAL ENGINE • V3.1")
+                    .font(.system(size: 9, weight: .bold, design: .default))
+                    .tracking(1.8)
                     .foregroundStyle(AppTheme.textSecondary)
             }
 
             Spacer()
 
+            // Streamer Proof Mode Button
+            Button {
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    streamerManager.isEnabled.toggle()
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.cardBackground)
+                        .shadow(color: AppTheme.clayDarkShadow, radius: 5, x: 2.5, y: 3.5)
+                        .shadow(color: AppTheme.clayLightShadow, radius: 4, x: -2.5, y: -2.5)
+
+                    Image(systemName: streamerManager.isEnabled ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(streamerManager.isEnabled ? Color.purple : AppTheme.textSecondary)
+                }
+                .frame(width: 46, height: 46)
+            }
+            .claymorphicButtonPress()
+            .accessibilityLabel("Toggle Streamer Proof Mode")
+
+            // Settings Button
             Button {
                 showSettings = true
             } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .frame(width: 48, height: 48)
-                    .claymorphicCircle(depth: 6)
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.cardBackground)
+                        .shadow(color: AppTheme.clayDarkShadow, radius: 5, x: 2.5, y: 3.5)
+                        .shadow(color: AppTheme.clayLightShadow, radius: 4, x: -2.5, y: -2.5)
+
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+                .frame(width: 46, height: 46)
             }
             .claymorphicButtonPress()
             .accessibilityLabel("Open settings")
         }
+    }
+
+    private var streamerShieldBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "shield.checkered")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Color.purple)
+
+            Text("STREAMER PROOF: ACTIVE")
+                .font(.system(size: 10, weight: .bold, design: .default))
+                .tracking(1.0)
+                .foregroundStyle(Color.purple)
+
+            Spacer()
+
+            Text("Auto-masks on screen share")
+                .font(.system(size: 9, weight: .medium, design: .default))
+                .foregroundStyle(AppTheme.textSecondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.purple.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.purple.opacity(0.25), lineWidth: 1)
+                )
+        )
     }
 
     // MARK: - Device Status Wide Card
@@ -145,6 +257,12 @@ struct ContentView: View {
                     value: licenseManager.isActive ? licenseManager.formattedTimeRemaining(currentDate: now) : "NOT ACTIVATED",
                     icon: "key.fill",
                     valueColor: licenseManager.isActive ? AppTheme.activeGreen : Color.red
+                )
+                deviceDetailRow(
+                    label: "Streamer Shield",
+                    value: streamerManager.isEnabled ? "ARMED (STEALTH)" : "INACTIVE",
+                    icon: streamerManager.isEnabled ? "eye.slash.fill" : "eye.fill",
+                    valueColor: streamerManager.isEnabled ? Color.purple : AppTheme.textSecondary
                 )
             }
         }
@@ -216,9 +334,9 @@ struct ContentView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    patchCard(name: "Aim Magic 360", target: "FREE FIRE • MAX", package: "AIM MAGIC 360- FFMAX.3105", icon: "wand.and.stars", state: $maxAimMagic360Enabled)
-                    patchCard(name: "Aim Head", target: "FREE FIRE • MAX", package: "AIM NHE TAM FFMAX.3105", icon: "viewfinder", state: $maxAimNheTamEnabled)
-                    patchCard(name: "Guest Reset", target: "FREE FIRE • MAX", package: "Reset Acc FFM.3105", icon: "person.crop.circle.badge.xmark", state: $maxGuestResetEnabled)
+                    patchCard(name: "Aim Magic 360", target: "FREE FIRE • MAX", package: "AIM MAGIC 360- FFMAX.3105", icon: "wand.and.stars", state: $maxAimMagic360Enabled, activeColor: Color(red: 0.58, green: 0.38, blue: 0.98))
+                    patchCard(name: "Aim Head", target: "FREE FIRE • MAX", package: "AIM NHE TAM FFMAX.3105", icon: "viewfinder", state: $maxAimNheTamEnabled, activeColor: Color(red: 0.94, green: 0.28, blue: 0.28))
+                    patchCard(name: "Guest Reset", target: "FREE FIRE • MAX", package: "Reset Acc FFM.3105", icon: "person.crop.circle.badge.xmark", state: $maxGuestResetEnabled, activeColor: Color(red: 0.12, green: 0.65, blue: 0.95))
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -780,7 +898,11 @@ private struct PatchOptionCard: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+            action()
+        }) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
                     ZStack {
@@ -855,5 +977,233 @@ private struct PatchOptionCard: View {
         .buttonStyle(.plain)
         .disabled(isBusy || isLocked)
         .opacity(isLocked ? 0.62 : 1.0)
+    }
+}
+
+// MARK: - Streamer Proof Manager (Anti-Screen Recording & Screen Share Protection)
+final class StreamerProofManager: ObservableObject {
+    static let shared = StreamerProofManager()
+
+    @AppStorage("cryptoric_streamer_proof_enabled") var isEnabled: Bool = false {
+        didSet {
+            objectWillChange.send()
+        }
+    }
+
+    @Published var isCaptured: Bool = false
+    @Published var isBackgrounded: Bool = false
+
+    var isShieldActive: Bool {
+        return isEnabled && (isCaptured || isBackgrounded)
+    }
+
+    private var observer: NSObjectProtocol?
+
+    private init() {
+        self.isCaptured = UIScreen.main.isCaptured
+        self.observer = NotificationCenter.default.addObserver(
+            forName: UIScreen.capturedDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            self.isCaptured = UIScreen.main.isCaptured
+            self.objectWillChange.send()
+        }
+    }
+
+    func checkCaptureState() {
+        self.isCaptured = UIScreen.main.isCaptured
+    }
+
+    func handleScenePhase(_ phase: ScenePhase) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if phase == .active {
+                self.isBackgrounded = false
+                self.checkCaptureState()
+            } else {
+                self.isBackgrounded = true
+            }
+        }
+    }
+
+    deinit {
+        if let observer = observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+}
+
+// MARK: - Streamer Decoy View (Screen Share & Recording Mask)
+private struct StreamerDecoyView: View {
+    @ObservedObject private var streamerManager = StreamerProofManager.shared
+    @State private var isOptimizing = false
+    @State private var optimizationComplete = false
+
+    var body: some View {
+        ZStack {
+            AnimatedHyperBackdrop()
+                .ignoresSafeArea()
+
+            VStack(spacing: 22) {
+                // Top status
+                HStack(spacing: 10) {
+                    Image(systemName: "cpu.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(AppTheme.textPrimary)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("System Diagnostics")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("DEVICE PERFORMANCE MONITOR")
+                            .font(.system(size: 9, weight: .semibold))
+                            .tracking(1.4)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+
+                    Spacer()
+
+                    // Innocent shield badge
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.green).frame(width: 6, height: 6)
+                        Text("NORMAL")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Color.green)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .claymorphicCapsuleDepression()
+                }
+                .padding(.top, 24)
+
+                // Main Metric Dial
+                VStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .stroke(AppTheme.depressedBackground, lineWidth: 14)
+                            .frame(width: 140, height: 140)
+
+                        Circle()
+                            .trim(from: 0, to: isOptimizing ? 0.95 : 0.68)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.cyan],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                style: StrokeStyle(lineWidth: 14, lineCap: .round)
+                            )
+                            .frame(width: 140, height: 140)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 1.0), value: isOptimizing)
+
+                        VStack(spacing: 2) {
+                            Text(isOptimizing ? "CLEANING…" : "OPTIMAL")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color.blue)
+
+                            Text(isOptimizing ? "88%" : "68%")
+                                .font(.system(size: 28, weight: .black))
+                                .foregroundStyle(AppTheme.textPrimary)
+
+                            Text("RAM Utilization")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+
+                    Text("Thermal state: Nominal • Battery health: 100%")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(20)
+                .claymorphicCard(cornerRadius: 26, depth: 8)
+
+                // Stats Rows
+                VStack(spacing: 10) {
+                    decoyRow(label: "Available Memory", value: isOptimizing ? "3.8 GB / 6.0 GB" : "2.4 GB / 6.0 GB", icon: "memorychip")
+                    decoyRow(label: "Internal Storage", value: "114.2 GB Free", icon: "internaldrive")
+                    decoyRow(label: "CPU Architecture", value: "Apple Silicon (6-Core)", icon: "speedometer")
+                    decoyRow(label: "Display Refresh", value: "ProMotion 120Hz", icon: "display")
+                }
+                .padding(18)
+                .claymorphicCard(cornerRadius: 26, depth: 8)
+
+                // Innocent Optimize Action
+                Button {
+                    let impact = UIImpactFeedbackGenerator(style: .medium)
+                    impact.impactOccurred()
+                    isOptimizing = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                        isOptimizing = false
+                        optimizationComplete = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: isOptimizing ? "arrow.triangle.2.circlepath" : "bolt.fill")
+                            .font(.system(size: 13, weight: .bold))
+                        Text(isOptimizing ? "OPTIMIZING MEMORY…" : (optimizationComplete ? "SYSTEM OPTIMIZED ✓" : "OPTIMIZE SYSTEM CACHE"))
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(0.8)
+                    }
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .claymorphicCard(cornerRadius: 18, depth: 6)
+                }
+                .claymorphicButtonPress()
+                .disabled(isOptimizing)
+
+                Spacer()
+
+                // Unlock / pause streamer proof button
+                Button {
+                    let impact = UIImpactFeedbackGenerator(style: .light)
+                    impact.impactOccurred()
+                    withAnimation {
+                        streamerManager.isEnabled = false
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.open.fill")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("Exit Streamer Protection Mode")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .claymorphicCapsuleDepression()
+                }
+                .claymorphicButtonPress()
+                .padding(.bottom, 16)
+            }
+            .padding(.horizontal, 18)
+        }
+    }
+
+    private func decoyRow(label: String, value: String, icon: String) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(AppTheme.depressedBackground)
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+            .frame(width: 26, height: 26)
+
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary)
+
+            Spacer()
+
+            Text(value)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppTheme.textPrimary)
+        }
     }
 }

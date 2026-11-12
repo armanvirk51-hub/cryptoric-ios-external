@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+    @AppStorage("cryptoric_streamer_proof_enabled") private var streamerProofEnabled = false
     @State private var now = Date()
     @State private var copiedKey = false
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -15,14 +16,52 @@ struct SettingsView: View {
             Form {
                 Section {
                     HStack(spacing: 14) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Cryptoric").font(.headline)
+                        Image("AppLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 50, height: 50)
+                            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text("Cryptoric").font(.headline)
+                                HStack(spacing: 3) {
+                                    Image(systemName: "crown.fill")
+                                        .font(.system(size: 8, weight: .bold))
+                                    Text("PRO")
+                                        .font(.system(size: 8, weight: .black))
+                                }
+                                .foregroundStyle(Color(red: 0.85, green: 0.60, blue: 0.10))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color(red: 0.95, green: 0.85, blue: 0.45).opacity(0.25)))
+                            }
                             Text(language.text("common.version", appVersion))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .padding(.vertical, 4)
+                }
+
+                Section("Streamer & Privacy Protection") {
+                    Toggle(isOn: $streamerProofEnabled) {
+                        Label("Streamer Proof Mode", systemImage: "eye.slash.fill")
+                    }
+                    .tint(Color.purple)
+
+                    HStack {
+                        Label("Screen Capture Status", systemImage: "record.circle")
+                        Spacer()
+                        Text(UIScreen.main.isCaptured ? "CAPTURING (SHIELD ACTIVE)" : "CLEAN")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(UIScreen.main.isCaptured ? Color.red : Color.green)
+                    }
+
+                    Text("When Streamer Proof is active, all cheat and patch controls are masked with an innocent device analytics screen during screen recording, Discord/Zoom screen share, or AirPlay.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("License & Access") {
