@@ -74,6 +74,49 @@ enum ContainerStore {
         let detail = lookupError.map(String.init) ?? "unavailable"
         log("patch: MHA-C2 could not resolve \(bundleID), detail=\(detail)")
 
+        // Instant fallback for Free Fire variations:
+        let fallbackCandidates: [String]
+        if bundleID.contains("freefireind") || bundleID.contains("freefireth") {
+            fallbackCandidates = ["com.dts.freefireind", "com.dts.freefireth", "com.dts.freefirein", "com.garena.game.ffi"]
+        } else if bundleID.contains("freefiremax") {
+            fallbackCandidates = ["com.dts.freefiremax"]
+        } else {
+            fallbackCandidates = []
+        }
+
+        for altID in fallbackCandidates where altID != bundleID {
+            var altError: NSString?
+            if let path = MCMActivateContainerPath(2, altID, false, &altError),
+               isApplicationContainerPath(path) {
+                log("patch: MHA-C2 resolved fallback candidate \(altID) for \(bundleID)")
+                return path
+            }
+        }
+
+        // Fast discovery from installed apps list via LaunchServices / MobileInstallation
+        let installed = installedAppInfo() as? [String: [String: Any]] ?? [:]
+        for (installedID, info) in installed {
+            let lower = installedID.lowercased()
+            let name = (info["name"] as? String ?? "").lowercased()
+            let matches = bundleID.contains("max")
+                ? (lower.contains("freefiremax") || name.contains("free fire max"))
+                : ((lower.contains("freefire") || name.contains("free fire")) && !lower.contains("max") && !name.contains("max"))
+            if matches {
+                if let directContainer = info["container"] as? String,
+                   !directContainer.isEmpty,
+                   isApplicationContainerPath(directContainer) {
+                    log("patch: resolved direct container via installed apps list: \(installedID) -> \(directContainer)")
+                    return directContainer
+                }
+                var actError: NSString?
+                if let path = MCMActivateContainerPath(2, installedID, false, &actError),
+                   isApplicationContainerPath(path) {
+                    log("patch: resolved via MCM for discovered app: \(installedID) -> \(path)")
+                    return path
+                }
+            }
+        }
+
         // Fallback for iOS builds where MCM refuses to hand out sandbox
         // tokens (e.g. iOS 18.1.x): scan the app-data root with the inode
         // walk and read each container's MCM metadata plist directly. The

@@ -845,17 +845,6 @@ struct ContentView: View {
         let currentGame = self.selectedGame
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // 0. On iOS 26+, the sandbox escape is auto-run at app launch.
-            //    If it hasn't completed yet, ask the user to wait — never call
-            //    KernelExploit.run() a second time; that crashes the process.
-            if KernelExploit.requiresSandboxEscape && !KernelExploit.hasSandboxAccess() {
-                DispatchQueue.main.async {
-                    self.patchMessage = "ENGINE NOT READY — Wait a few seconds for the engine to finish activating, then try again."
-                    self.patchOperationBusy = false
-                }
-                return
-            }
-
             // 1. Resolve library item with auto-recovery
             var resolvedItem = self.findPatchItem(for: packageFilename)
             if resolvedItem == nil {
@@ -913,13 +902,7 @@ struct ContentView: View {
                 case "com.dts.freefiremax": gameName = "Free Fire MAX"
                 default: gameName = bundleID
                 }
-                let v = ProcessInfo.processInfo.operatingSystemVersion
-                let iosLabel = "iOS \(v.majorVersion).\(v.minorVersion)"
-                if KernelExploit.requiresSandboxEscape {
-                    result = .unavailable("SANDBOX NOT READY — Make sure \(gameName) is installed and relaunch Cryptoric on \(iosLabel).")
-                } else {
-                    result = .unavailable("NOT FOUND — \(gameName) not detected on \(iosLabel). Make sure it is installed.")
-                }
+                result = .unavailable("FAILED — \(gameName) container not found. Make sure the game is installed.")
             } catch {
                 // A failed restore must stay visible as a failure: the toggle
                 // keeps its ON state so the user can retry instead of the app
@@ -947,9 +930,24 @@ struct ContentView: View {
     }
 
     private func openGame(scheme: String) {
-        guard let url = URL(string: "\(scheme)://") else { return }
-        UIApplication.shared.open(url, options: [:]) { success in
-            log("launch: \(scheme) success=\(success)")
+        if let url = URL(string: "\(scheme)://") {
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url, options: [:]) { success in
+                    log("launch: \(scheme) success=\(success)")
+                }
+                return
+            }
+        }
+        if scheme == "freefireind", let altUrl = URL(string: "freefireth://") {
+            UIApplication.shared.open(altUrl, options: [:]) { success in
+                log("launch fallback freefireth success=\(success)")
+            }
+            return
+        }
+        if let url = URL(string: "\(scheme)://") {
+            UIApplication.shared.open(url, options: [:]) { success in
+                log("launch: \(scheme) success=\(success)")
+            }
         }
     }
 }
