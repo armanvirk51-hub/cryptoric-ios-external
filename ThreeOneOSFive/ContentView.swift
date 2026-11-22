@@ -20,9 +20,6 @@ struct ContentView: View {
     @State private var maxAimNheTamEnabled = false
     @StateObject private var streamerManager = StreamerProofManager.shared
 
-    // The FF India patch is password-protected; password is embedded to bypass user prompt
-    private static let ffIndiaPassword = "@khatri_ashok04"
-
     private enum GameMode: String, CaseIterable {
         case india  = "FF INDIA"
         case max    = "FF MAX"
@@ -700,8 +697,8 @@ struct ContentView: View {
         if let root = try? PatchProjectLibrary.packageRootURL() {
             let fileURL = root.appendingPathComponent(targetFilename)
             if let data = (try? Data(contentsOf: fileURL)) ?? (b64.isEmpty ? nil : Data(base64Encoded: b64)) {
-                // For the FF India patch, supply the embedded password to bypass the prompt
-                let password: String? = targetFilename.contains("Fluorite") ? ContentView.ffIndiaPassword : nil
+                // For the FF India patch, no password required
+                let password: String? = nil
                 if let summary = try? PatchPackageCodec.inspect(data) {
                     let decoded = try? PatchPackageCodec.decode(data, password: password)
                     return PatchLibraryItem(
