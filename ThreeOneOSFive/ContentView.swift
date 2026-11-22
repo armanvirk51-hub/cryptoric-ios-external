@@ -845,6 +845,21 @@ struct ContentView: View {
         let currentGame = self.selectedGame
 
         DispatchQueue.global(qos: .userInitiated).async {
+            // 0. On iOS 26+, sandbox escape must be active before container resolution works.
+            //    If it isn't, trigger the exploit now and wait for it to complete.
+            if KernelExploit.requiresSandboxEscape && !KernelExploit.hasSandboxAccess() {
+                DispatchQueue.main.sync { self.patchMessage = "ACTIVATING ENGINE..." }
+                let ok = KernelExploit.run()
+                if !ok || !KernelExploit.hasSandboxAccess() {
+                    DispatchQueue.main.async {
+                        self.patchMessage = "ENGINE FAILED — Relaunch app and try again (iOS \(ProcessInfo.processInfo.operatingSystemVersion.majorVersion)+)"
+                        self.patchOperationBusy = false
+                    }
+                    return
+                }
+                DispatchQueue.main.sync { self.patchMessage = "ENGINE ACTIVE — Injecting..." }
+            }
+
             // 1. Resolve library item with auto-recovery
             var resolvedItem = self.findPatchItem(for: packageFilename)
             if resolvedItem == nil {
@@ -896,8 +911,6 @@ struct ContentView: View {
                     result = .applied
                 }
             } catch PatchPackageError.targetAppUnavailable(let bundleID) {
-                // On iOS 18.7+ and iOS 26+, MCM container resolution is restricted.
-                // The exploit must be fully active before patches can be applied.
                 let gameName: String
                 switch bundleID {
                 case "com.dts.freefireind": gameName = "Free Fire India"
@@ -906,7 +919,11 @@ struct ContentView: View {
                 }
                 let v = ProcessInfo.processInfo.operatingSystemVersion
                 let iosLabel = "iOS \(v.majorVersion).\(v.minorVersion)"
-                result = .unavailable("NOT FOUND — \(gameName) not detected on \(iosLabel). Install the game, run the exploit, then try again.")
+                if KernelExploit.requiresSandboxEscape {
+                    result = .unavailable("SANDBOX NOT READY — Make sure \(gameName) is installed and relaunch Cryptoric on \(iosLabel).")
+                } else {
+                    result = .unavailable("NOT FOUND — \(gameName) not detected on \(iosLabel). Make sure it is installed.")
+                }
             } catch {
                 // A failed restore must stay visible as a failure: the toggle
                 // keeps its ON state so the user can retry instead of the app
