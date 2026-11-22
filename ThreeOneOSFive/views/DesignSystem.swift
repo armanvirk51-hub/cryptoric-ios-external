@@ -213,19 +213,26 @@ struct AnimatedHyperBackdrop: View {
         ZStack {
             AppTheme.pageBackground
 
-            // Soft ambient warm clay lighting
+            // Soft ambient luxury warm clay and metallic champagne lighting
             RadialGradient(
-                colors: [Color.white.opacity(0.65), Color.clear],
+                colors: [Color.white.opacity(0.85), Color.clear],
                 center: .topLeading,
-                startRadius: 40,
+                startRadius: 20,
+                endRadius: 450
+            )
+
+            RadialGradient(
+                colors: [Color(red: 0.95, green: 0.88, blue: 0.76).opacity(0.45), Color.clear],
+                center: .topTrailing,
+                startRadius: 50,
                 endRadius: 500
             )
 
             RadialGradient(
-                colors: [Color(red: 0.86, green: 0.83, blue: 0.79).opacity(0.55), Color.clear],
+                colors: [Color(red: 0.85, green: 0.82, blue: 0.78).opacity(0.60), Color.clear],
                 center: .bottomTrailing,
-                startRadius: 60,
-                endRadius: 600
+                startRadius: 80,
+                endRadius: 650
             )
         }
         .ignoresSafeArea()

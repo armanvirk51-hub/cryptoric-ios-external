@@ -34,6 +34,7 @@ struct PatchLibraryItem: Identifiable {
         if filename == "Reset Acc FFM" { return "Guest Reset" }
         if filename == "AIM CHETS HS FFTH" { return "Aim Chets HS" }
         if filename == "AIM NHE TAM FFTH" { return "Aim NheTam Norm" }
+        if filename.lowercased().contains("fluorite") { return "Mode Menu" }
         if let internalName = project?.name, !internalName.isEmpty {
             return internalName
         }

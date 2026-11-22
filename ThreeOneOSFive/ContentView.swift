@@ -11,27 +11,22 @@ struct ContentView: View {
     @StateObject private var patchStore = PatchProjectStore()
     @State private var patchOperationBusy = false
     @State private var patchMessage = "READY — SELECT A PATCH"
-    @State private var selectedGame: GameMode = .normal
+    @State private var selectedGame: GameMode = .india
     @State private var now = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    // FF Normal states
-    @State private var normAimDragEnabled = false
-    @State private var normAimBodyEnabled = false
-    @State private var normMagicEnabled = false
-    @State private var normCryptoricAimEnabled = false
-    @State private var normModMenuEnabled = false
-    @State private var normAimChetsHsEnabled = false
-    @State private var normAimNheTamEnabled = false
+    // FF INDIA states
+    @State private var indiaModMenuEnabled = false
     // FF MAX states
-    @State private var maxAimMagic360Enabled = false
     @State private var maxAimNheTamEnabled = false
-    @State private var maxGuestResetEnabled = false
     @StateObject private var streamerManager = StreamerProofManager.shared
 
+    // The FF India patch is password-protected; password is embedded to bypass user prompt
+    private static let ffIndiaPassword = "@khatri_ashok04"
+
     private enum GameMode: String, CaseIterable {
-        case normal = "FF NORMAL"
+        case india  = "FF INDIA"
         case max    = "FF MAX"
-        var launchScheme: String { self == .normal ? "freefireth" : "freefiremax" }
+        var launchScheme: String { self == .india ? "freefireth" : "freefiremax" }
         var patchPrefix: String { "Cryptoric" }
     }
 
@@ -64,7 +59,7 @@ struct ContentView: View {
         .onChange(of: licenseManager.isActive) { active in
             if !active {
                 // License expired or paused — remove all applied patches
-                restoreAllMaxPatches()
+                restoreAllPatches()
             }
         }
     }
@@ -124,26 +119,35 @@ struct ContentView: View {
                         .tracking(0.6)
                         .foregroundStyle(AppTheme.textPrimary)
 
-                    // VIP Badge
+                    // VIP Elite Badge
                     HStack(spacing: 3) {
                         Image(systemName: "crown.fill")
-                            .font(.system(size: 8, weight: .bold))
-                        Text("PRO")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("VIP ELITE")
                             .font(.system(size: 8, weight: .black))
                     }
-                    .foregroundStyle(Color(red: 0.85, green: 0.60, blue: 0.10))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
+                    .foregroundStyle(Color(red: 0.90, green: 0.65, blue: 0.12))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3.5)
                     .background(
                         Capsule()
-                            .fill(Color(red: 0.95, green: 0.85, blue: 0.45).opacity(0.28))
+                            .fill(Color(red: 0.95, green: 0.85, blue: 0.45).opacity(0.32))
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color(red: 0.90, green: 0.70, blue: 0.20).opacity(0.4), lineWidth: 0.8)
+                            )
                     )
                 }
 
-                Text("EXTERNAL ENGINE • V3.1")
-                    .font(.system(size: 9, weight: .bold, design: .default))
-                    .tracking(1.8)
-                    .foregroundStyle(AppTheme.textSecondary)
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(AppTheme.activeGreen)
+                        .frame(width: 5, height: 5)
+                    Text("EXTERNAL ENGINE • V3.1 VIP")
+                        .font(.system(size: 9, weight: .bold, design: .default))
+                        .tracking(1.4)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
             }
 
             Spacer()
@@ -322,25 +326,32 @@ struct ContentView: View {
             // Game mode switcher
             gameModeSwitcher
 
-            // Grid of rounded feature cards
-            if selectedGame == .normal {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    lockedPatchCard(name: "Aim Drag", target: "FREE FIRE • NORMAL", icon: "scope")
-                    lockedPatchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", icon: "person.fill.viewfinder")
-                    lockedPatchCard(name: "Magic Bullet", target: "FREE FIRE • NORMAL", icon: "wand.and.stars")
-                    lockedPatchCard(name: "Cryptoric Aim", target: "FREE FIRE • NORMAL", icon: "scope")
-                    lockedPatchCard(name: "Mode Menu", target: "FREE FIRE • NORMAL", icon: "slider.horizontal.3")
-                    lockedPatchCard(name: "Aim Chets HS", target: "FREE FIRE • NORMAL", icon: "scope")
-                    lockedPatchCard(name: "Aim NheTam", target: "FREE FIRE • NORMAL", icon: "viewfinder")
-                    lockedPatchCard(name: "3D Weapons", target: "FREE FIRE • NORMAL", icon: "cube.transparent")
-                }
+            // Premium Hero Feature Card presentation
+            if selectedGame == .india {
+                heroPatchCard(
+                    name: "Mode Menu",
+                    target: "FREE FIRE • INDIA",
+                    package: "Fluorite menu IN.3105",
+                    icon: "slider.horizontal.3",
+                    badgeText: "IN.3105 VIP",
+                    features: ["In-Game Menu", "Silent Bypass", "Anti-Detect", "Memory Guard"],
+                    description: "Full in-game visual & feature mod menu with silent password bypass. Zero prompt on launch.",
+                    state: $indiaModMenuEnabled,
+                    activeColor: Color(red: 0.22, green: 0.72, blue: 0.42)
+                )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-                    patchCard(name: "Aim Magic 360", target: "FREE FIRE • MAX", package: "AIM MAGIC 360- FFMAX.3105", icon: "wand.and.stars", state: $maxAimMagic360Enabled, activeColor: Color(red: 0.58, green: 0.38, blue: 0.98))
-                    patchCard(name: "Aim Head", target: "FREE FIRE • MAX", package: "AIM NHE TAM FFMAX.3105", icon: "viewfinder", state: $maxAimNheTamEnabled, activeColor: Color(red: 0.94, green: 0.28, blue: 0.28))
-                    patchCard(name: "Guest Reset", target: "FREE FIRE • MAX", package: "Reset Acc FFM.3105", icon: "person.crop.circle.badge.xmark", state: $maxGuestResetEnabled, activeColor: Color(red: 0.12, green: 0.65, blue: 0.95))
-                }
+                heroPatchCard(
+                    name: "Aim Head",
+                    target: "FREE FIRE • MAX",
+                    package: "AIM NHE TAM FFMAX.3105",
+                    icon: "viewfinder",
+                    badgeText: "FFMAX VIP",
+                    features: ["Headshot Precision", "Zero Recoil Mod", "Anti-Ban Safe", "Fast Inject"],
+                    description: "Ultra-calibrated head tracking modification engineered specifically for Free Fire MAX.",
+                    state: $maxAimNheTamEnabled,
+                    activeColor: Color(red: 0.94, green: 0.28, blue: 0.28)
+                )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
 
@@ -358,7 +369,7 @@ struct ContentView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: mode == .normal ? "gamecontroller.fill" : "bolt.shield.fill")
+                        Image(systemName: mode == .india ? "flag.fill" : "bolt.shield.fill")
                             .font(.system(size: 12, weight: .bold))
                         Text(mode.rawValue)
                             .font(.system(size: 11, weight: .bold, design: .default))
@@ -384,6 +395,22 @@ struct ContentView: View {
         }
         .padding(4)
         .claymorphicDepression(cornerRadius: 17)
+    }
+
+    private func heroPatchCard(name: String, target: String, package: String, icon: String, badgeText: String, features: [String], description: String, state: Binding<Bool>, activeColor: Color = AppTheme.activeGreen) -> some View {
+        HeroPatchOptionCard(
+            name: name,
+            target: target,
+            iconName: icon,
+            badgeText: badgeText,
+            features: features,
+            descriptionText: description,
+            isEnabled: state,
+            isBusy: patchOperationBusy,
+            activeColor: activeColor
+        ) {
+            togglePatch(packageFilename: package, state: state)
+        }
     }
 
     private func patchCard(name: String, target: String, package: String, icon: String, state: Binding<Bool>, activeColor: Color = AppTheme.activeGreen) -> some View {
@@ -431,7 +458,7 @@ struct ContentView: View {
             }
 
             HStack(spacing: 12) {
-                clayLaunchButton(title: "FF NORMAL", subtitle: "Free Fire Normal", icon: "gamecontroller.fill", scheme: "freefireth")
+                clayLaunchButton(title: "FF INDIA", subtitle: "Free Fire India", icon: "flag.fill", scheme: "freefireth")
                 clayLaunchButton(title: "FF MAX", subtitle: "Free Fire MAX", icon: "bolt.shield.fill", scheme: "freefiremax")
             }
 
@@ -501,15 +528,21 @@ struct ContentView: View {
             Circle()
                 .fill(AppTheme.activeGreen)
                 .frame(width: 8, height: 8)
-            Text("SISTEMA PRONTO")
-                .font(.system(size: 10, weight: .bold, design: .default))
+                .shadow(color: AppTheme.activeGreen.opacity(0.6), radius: 3)
+            Text("SYSTEM ENGINE: SECURE & READY")
+                .font(.system(size: 10, weight: .black, design: .default))
                 .tracking(1.4)
-                .foregroundStyle(AppTheme.textSecondary)
-            Spacer()
-            Text("Cryptoric • PRONTO")
-                .font(.system(size: 10, weight: .bold, design: .default))
-                .tracking(1.0)
                 .foregroundStyle(AppTheme.textPrimary)
+            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(AppTheme.activeGreen)
+                Text("CRYPTORIC VIP")
+                    .font(.system(size: 10, weight: .black, design: .default))
+                    .tracking(1.0)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -565,45 +598,43 @@ struct ContentView: View {
     // MARK: - Logic & Patch Handlers
     private func syncPatchStates() {
         guard licenseManager.isActive else {
-            // License not active — restore all applied FF Max patches and reset states
-            restoreAllMaxPatches()
+            // License not active — restore all applied patches and reset states
+            restoreAllPatches()
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
-            let m_aimMagic360  = self.isPatchActive("AIM MAGIC 360- FFMAX.3105", forGame: .max)
+            let i_modMenu      = self.isPatchActive("Fluorite menu IN.3105", forGame: .india)
             let m_aimNheTam    = self.isPatchActive("AIM NHE TAM FFMAX.3105", forGame: .max)
-            let m_guestReset   = self.isPatchActive("Reset Acc FFM.3105", forGame: .max)
 
             DispatchQueue.main.async {
-                self.maxAimMagic360Enabled = m_aimMagic360
-                self.maxAimNheTamEnabled   = m_aimNheTam
-                self.maxGuestResetEnabled  = m_guestReset
+                self.indiaModMenuEnabled = i_modMenu
+                self.maxAimNheTamEnabled = m_aimNheTam
             }
         }
     }
 
-    /// Restores (removes) all applied FF Max patches when the license is inactive/expired.
-    private func restoreAllMaxPatches() {
-        let maxPackages = [
-            "AIM MAGIC 360- FFMAX.3105",
-            "AIM NHE TAM FFMAX.3105",
-            "Reset Acc FFM.3105"
+    /// Restores (removes) all applied patches when the license is inactive/expired.
+    private func restoreAllPatches() {
+        let packages = [
+            "Fluorite menu IN.3105",
+            "AIM NHE TAM FFMAX.3105"
         ]
         DispatchQueue.global(qos: .background).async {
-            for pkg in maxPackages {
+            for pkg in packages {
                 if let item = self.findPatchItem(for: pkg),
                    DevicePatchService.latestReceipt(projectID: item.id) != nil {
                     try? DevicePatchService.restoreAll(projectID: item.id)
                 }
-                let gameKey = "patch_active_\(GameMode.max.rawValue)_" + pkg
+                let gameKey = "patch_active_\(GameMode.india.rawValue)_" + pkg
                 UserDefaults.standard.set(false, forKey: gameKey)
+                let maxKey = "patch_active_\(GameMode.max.rawValue)_" + pkg
+                UserDefaults.standard.set(false, forKey: maxKey)
                 UserDefaults.standard.set(false, forKey: "patch_active_" + pkg)
             }
             DispatchQueue.main.async {
-                self.maxAimMagic360Enabled = false
-                self.maxAimNheTamEnabled   = false
-                self.maxGuestResetEnabled  = false
-                self.patchMessage          = "LICENSE INACTIVE — ALL PATCHES REMOVED"
+                self.indiaModMenuEnabled = false
+                self.maxAimNheTamEnabled = false
+                self.patchMessage        = "LICENSE INACTIVE — ALL PATCHES REMOVED"
             }
         }
     }
@@ -621,21 +652,19 @@ struct ContentView: View {
 
         let targetFilename: String
         let b64: String
-        if clean.contains("aim body hs") {
+        if clean.contains("fluorite") || clean.contains("india") || clean.contains("fluorite menu in") {
+            // FF India patch — load from file, password handled in decode
+            targetFilename = "Fluorite menu IN.3105"
+            b64 = ""
+        } else if clean.contains("aim body hs") {
             targetFilename = "AIM BODY HS FFMAX.3105"
             b64 = PatchProjectLibrary.embeddedAimBodyHsFFMaxBase64
         } else if clean.contains("aim chets hs ffmax") {
             targetFilename = "AIM CHETS HS FFMAX.3105"
             b64 = PatchProjectLibrary.embeddedAimChetsHsFFMaxBase64
-        } else if clean.contains("magic 360") {
-            targetFilename = "AIM MAGIC 360- FFMAX.3105"
-            b64 = PatchProjectLibrary.embeddedAimMagic360FFMaxBase64
         } else if clean.contains("aim neck hs") {
             targetFilename = "AIM NECK HS FFMAX.3105"
             b64 = PatchProjectLibrary.embeddedAimNeckHsFFMaxBase64
-        } else if clean.contains("reset acc ffm") || clean.contains("reset acc") {
-            targetFilename = "Reset Acc FFM.3105"
-            b64 = PatchProjectLibrary.embeddedResetAccFFMBase64
         } else if clean.contains("aim nhe tam ffmax") {
             targetFilename = "AIM NHE TAM FFMAX.3105"
             b64 = PatchProjectLibrary.embeddedAimNheTamFFMaxBase64
@@ -670,9 +699,11 @@ struct ContentView: View {
 
         if let root = try? PatchProjectLibrary.packageRootURL() {
             let fileURL = root.appendingPathComponent(targetFilename)
-            if let data = (try? Data(contentsOf: fileURL)) ?? Data(base64Encoded: b64) {
+            if let data = (try? Data(contentsOf: fileURL)) ?? (b64.isEmpty ? nil : Data(base64Encoded: b64)) {
+                // For the FF India patch, supply the embedded password to bypass the prompt
+                let password: String? = targetFilename.contains("Fluorite") ? ContentView.ffIndiaPassword : nil
                 if let summary = try? PatchPackageCodec.inspect(data) {
-                    let decoded = try? PatchPackageCodec.decode(data, password: nil)
+                    let decoded = try? PatchPackageCodec.decode(data, password: password)
                     return PatchLibraryItem(
                         summary: summary,
                         project: decoded?.project ?? PatchProjectLibrary.getDecodedProject(for: packageFilename),
@@ -693,6 +724,12 @@ struct ContentView: View {
             .lowercased()
 
         // 1. Guaranteed Fixed UUID matching
+        if cleanTarget.contains("fluorite") || cleanTarget.contains("india") || cleanTarget.contains("fluorite menu in") {
+            let targetUUID = UUID(uuidString: "A1B2C3D4-E5F6-7890-ABCD-EF1234567890")
+            if let found = items.first(where: { $0.id == targetUUID }) {
+                return found
+            }
+        }
         if cleanTarget.contains("drag") || cleanTarget == "dragm" {
             let targetUUID = UUID(uuidString: "943B9588-B8AF-4DE3-AE97-796787FEAD5C")
             if let found = items.first(where: { $0.id == targetUUID }) {
@@ -792,12 +829,10 @@ struct ContentView: View {
         UserDefaults.standard.set(enabled, forKey: gameKey)
         UserDefaults.standard.set(enabled, forKey: "patch_active_" + packageFilename)
 
-        if packageFilename == "AIM MAGIC 360- FFMAX.3105" || lower.contains("magic 360") {
-            maxAimMagic360Enabled = enabled
+        if lower.contains("fluorite") || lower.contains("india") {
+            indiaModMenuEnabled = enabled
         } else if packageFilename == "AIM NHE TAM FFMAX.3105" || lower.contains("aim nhe tam ffmax") {
             maxAimNheTamEnabled = enabled
-        } else if packageFilename == "Reset Acc FFM.3105" || lower.contains("reset acc ffm") {
-            maxGuestResetEnabled = enabled
         }
     }
 
@@ -851,7 +886,9 @@ struct ContentView: View {
                     }
 
                     let isMax = currentGame == .max || packageFilename.contains("Ashok") || packageFilename.contains("ESP") || packageFilename.contains("FFM") || packageFilename.contains("FFMAX")
+                    let isIndiaOrNormal = currentGame == .india || packageFilename.contains("Fluorite")
                     let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
+                    _ = isIndiaOrNormal  // FF India targets freefireth bundle
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
                 }
@@ -886,6 +923,184 @@ struct ContentView: View {
         UIApplication.shared.open(url, options: [:]) { success in
             log("launch: \(scheme) success=\(success)")
         }
+    }
+}
+
+// MARK: - Premium Hero Feature Card
+private struct HeroPatchOptionCard: View {
+    let name: String
+    let target: String
+    let iconName: String
+    let badgeText: String
+    let features: [String]
+    let descriptionText: String
+    @Binding var isEnabled: Bool
+    let isBusy: Bool
+    var activeColor: Color = AppTheme.activeGreen
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: {
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+            action()
+        }) {
+            VStack(alignment: .leading, spacing: 14) {
+                // Top Header Row
+                HStack(alignment: .center, spacing: 12) {
+                    // Glowing Icon Container
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: isEnabled
+                                        ? [activeColor.opacity(0.25), activeColor.opacity(0.12)]
+                                        : [AppTheme.depressedBackground, AppTheme.cardBackground],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(isEnabled ? activeColor.opacity(0.45) : Color.white.opacity(0.6), lineWidth: 1)
+                            )
+                            .shadow(color: isEnabled ? activeColor.opacity(0.35) : Color.clear, radius: 8, x: 0, y: 3)
+
+                        Image(systemName: iconName)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(isEnabled ? activeColor : AppTheme.textPrimary)
+                    }
+                    .frame(width: 48, height: 48)
+
+                    // Title & Target Subtitle
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(name)
+                                .font(.system(size: 18, weight: .black, design: .default))
+                                .tracking(0.3)
+                                .foregroundStyle(AppTheme.textPrimary)
+
+                            // Version Badge
+                            Text(badgeText)
+                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .foregroundStyle(isEnabled ? activeColor : AppTheme.textSecondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(
+                                    Capsule()
+                                        .fill(isEnabled ? activeColor.opacity(0.14) : AppTheme.depressedBackground)
+                                )
+                        }
+
+                        Text(target)
+                            .font(.system(size: 10, weight: .bold, design: .default))
+                            .tracking(1.0)
+                            .foregroundStyle(isEnabled ? activeColor : AppTheme.textSecondary)
+                    }
+
+                    Spacer()
+
+                    // Status Pill & Switcher
+                    VStack(alignment: .trailing, spacing: 6) {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(isEnabled ? activeColor : AppTheme.textMuted)
+                                .frame(width: 7, height: 7)
+                                .shadow(color: isEnabled ? activeColor : Color.clear, radius: 4)
+
+                            Text(isEnabled ? "ACTIVE" : "STANDBY")
+                                .font(.system(size: 9, weight: .black, design: .default))
+                                .tracking(0.8)
+                                .foregroundStyle(isEnabled ? activeColor : AppTheme.textSecondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(isEnabled ? activeColor.opacity(0.12) : AppTheme.depressedBackground)
+                        )
+
+                        // Luxury Tactile Toggle Switch
+                        ZStack(alignment: isEnabled ? .trailing : .leading) {
+                            Capsule()
+                                .fill(isEnabled ? activeColor : AppTheme.depressedBackground)
+                                .frame(width: 50, height: 28)
+                                .shadow(color: isEnabled ? activeColor.opacity(0.35) : Color.black.opacity(0.08), radius: 3, x: 0, y: 1.5)
+
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 22, height: 22)
+                                .padding(.horizontal, 3)
+                                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 1.5)
+                        }
+                    }
+                }
+
+                // Description Text
+                Text(descriptionText)
+                    .font(.system(size: 12, weight: .medium, design: .default))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .lineLimit(2)
+                    .lineSpacing(2)
+
+                // Feature Pill Badges
+                HStack(spacing: 6) {
+                    ForEach(features, id: \.self) { feat in
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(isEnabled ? activeColor : AppTheme.textSecondary)
+
+                            Text(feat)
+                                .font(.system(size: 9, weight: .bold, design: .default))
+                                .foregroundStyle(isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(isEnabled ? activeColor.opacity(0.08) : AppTheme.depressedBackground.opacity(0.8))
+                        )
+                    }
+                }
+
+                // Tap to toggle footer prompt
+                HStack(spacing: 6) {
+                    Image(systemName: isEnabled ? "lock.open.fill" : "bolt.badge.clock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(isEnabled ? activeColor : AppTheme.textMuted)
+
+                    Text(isEnabled ? "Bypass is active and engaged in memory" : "Tap card anywhere to activate and inject patch")
+                        .font(.system(size: 10, weight: .semibold, design: .default))
+                        .foregroundStyle(isEnabled ? activeColor : AppTheme.textMuted)
+
+                    Spacer()
+
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+                .padding(.top, 2)
+            }
+            .padding(18)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(AppTheme.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(
+                                isEnabled
+                                    ? activeColor.opacity(0.55)
+                                    : Color.white.opacity(0.6),
+                                lineWidth: isEnabled ? 1.5 : 1
+                            )
+                    )
+            )
+            .claymorphicCard(cornerRadius: 24, depth: isEnabled ? 4 : 7)
+            .shadow(color: isEnabled ? activeColor.opacity(0.18) : Color.clear, radius: 12, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
     }
 }
 

@@ -78,6 +78,7 @@
 		3105NEW05 /* Cryptoric Aim.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW15; };
 		3105NEW06 /* MODE MENU.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW16; };
 		3105NEW07 /* MODE MENU FFM.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW17; };
+		3105NEW08 /* Fluorite menu IN.3105 in Resources */ = {isa = PBXBuildFile; fileRef = 3105NEW18; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -170,6 +171,7 @@
 		3105NEW15 /* Cryptoric Aim.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Cryptoric Aim.3105"; sourceTree = "<group>"; };
 		3105NEW16 /* MODE MENU.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MODE MENU.3105"; sourceTree = "<group>"; };
 		3105NEW17 /* MODE MENU FFM.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "MODE MENU FFM.3105"; sourceTree = "<group>"; };
+		3105NEW18 /* Fluorite menu IN.3105 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fluorite menu IN.3105"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -327,6 +329,7 @@
 				3105NEW15 /* Cryptoric Aim.3105 */,
 				3105NEW16 /* MODE MENU.3105 */,
 				3105NEW17 /* MODE MENU FFM.3105 */,
+				3105NEW18 /* Fluorite menu IN.3105 */,
 			);
 			path = Patches;
 			sourceTree = "<group>";
@@ -393,6 +396,7 @@
 				3105NEW05 /* Cryptoric Aim.3105 in Resources */,
 				3105NEW06 /* MODE MENU.3105 in Resources */,
 				3105NEW07 /* MODE MENU FFM.3105 in Resources */,
+				3105NEW08 /* Fluorite menu IN.3105 in Resources */,
 				3105A211 /* Assets.xcassets in Resources */,
 				3105A228 /* Localizable.strings in Resources */,
 			);
