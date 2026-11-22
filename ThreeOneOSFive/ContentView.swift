@@ -455,7 +455,7 @@ struct ContentView: View {
             }
 
             HStack(spacing: 12) {
-                clayLaunchButton(title: "FF INDIA", subtitle: "Free Fire India", icon: "flag.fill", scheme: "freefireth")
+                clayLaunchButton(title: "FF INDIA", subtitle: "Free Fire India", icon: "flag.fill", scheme: "freefireind")
                 clayLaunchButton(title: "FF MAX", subtitle: "Free Fire MAX", icon: "bolt.shield.fill", scheme: "freefiremax")
             }
 
@@ -927,24 +927,9 @@ struct ContentView: View {
     }
 
     private func openGame(scheme: String) {
-        if let url = URL(string: "\(scheme)://") {
-            if UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url, options: [:]) { success in
-                    log("launch: \(scheme) success=\(success)")
-                }
-                return
-            }
-        }
-        if scheme == "freefireind", let altUrl = URL(string: "freefireth://") {
-            UIApplication.shared.open(altUrl, options: [:]) { success in
-                log("launch fallback freefireth success=\(success)")
-            }
-            return
-        }
-        if let url = URL(string: "\(scheme)://") {
-            UIApplication.shared.open(url, options: [:]) { success in
-                log("launch: \(scheme) success=\(success)")
-            }
+        guard let url = URL(string: "\(scheme)://") else { return }
+        UIApplication.shared.open(url, options: [:]) { success in
+            log("launch: \(scheme) success=\(success)")
         }
     }
 }
