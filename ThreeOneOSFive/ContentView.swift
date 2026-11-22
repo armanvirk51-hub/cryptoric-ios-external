@@ -845,19 +845,15 @@ struct ContentView: View {
         let currentGame = self.selectedGame
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // 0. On iOS 26+, sandbox escape must be active before container resolution works.
-            //    If it isn't, trigger the exploit now and wait for it to complete.
+            // 0. On iOS 26+, the sandbox escape is auto-run at app launch.
+            //    If it hasn't completed yet, ask the user to wait — never call
+            //    KernelExploit.run() a second time; that crashes the process.
             if KernelExploit.requiresSandboxEscape && !KernelExploit.hasSandboxAccess() {
-                DispatchQueue.main.sync { self.patchMessage = "ACTIVATING ENGINE..." }
-                let ok = KernelExploit.run()
-                if !ok || !KernelExploit.hasSandboxAccess() {
-                    DispatchQueue.main.async {
-                        self.patchMessage = "ENGINE FAILED — Relaunch app and try again (iOS \(ProcessInfo.processInfo.operatingSystemVersion.majorVersion)+)"
-                        self.patchOperationBusy = false
-                    }
-                    return
+                DispatchQueue.main.async {
+                    self.patchMessage = "ENGINE NOT READY — Wait a few seconds for the engine to finish activating, then try again."
+                    self.patchOperationBusy = false
                 }
-                DispatchQueue.main.sync { self.patchMessage = "ENGINE ACTIVE — Injecting..." }
+                return
             }
 
             // 1. Resolve library item with auto-recovery
