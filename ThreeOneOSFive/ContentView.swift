@@ -895,6 +895,18 @@ struct ContentView: View {
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
                 }
+            } catch PatchPackageError.targetAppUnavailable(let bundleID) {
+                // On iOS 18.7+ and iOS 26+, MCM container resolution is restricted.
+                // The exploit must be fully active before patches can be applied.
+                let gameName: String
+                switch bundleID {
+                case "com.dts.freefireind": gameName = "Free Fire India"
+                case "com.dts.freefiremax": gameName = "Free Fire MAX"
+                default: gameName = bundleID
+                }
+                let v = ProcessInfo.processInfo.operatingSystemVersion
+                let iosLabel = "iOS \(v.majorVersion).\(v.minorVersion)"
+                result = .unavailable("NOT FOUND — \(gameName) not detected on \(iosLabel). Install the game, run the exploit, then try again.")
             } catch {
                 // A failed restore must stay visible as a failure: the toggle
                 // keeps its ON state so the user can retry instead of the app
