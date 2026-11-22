@@ -26,7 +26,7 @@ struct ContentView: View {
     private enum GameMode: String, CaseIterable {
         case india  = "FF INDIA"
         case max    = "FF MAX"
-        var launchScheme: String { self == .india ? "freefireth" : "freefiremax" }
+        var launchScheme: String { self == .india ? "freefireind" : "freefiremax" }
         var patchPrefix: String { "Cryptoric" }
     }
 
@@ -886,9 +886,12 @@ struct ContentView: View {
                     }
 
                     let isMax = currentGame == .max || packageFilename.contains("Ashok") || packageFilename.contains("ESP") || packageFilename.contains("FFM") || packageFilename.contains("FFMAX")
-                    let isIndiaOrNormal = currentGame == .india || packageFilename.contains("Fluorite")
-                    let targetBundle = isMax ? "com.dts.freefiremax" : "com.dts.freefireth"
-                    _ = isIndiaOrNormal  // FF India targets freefireth bundle
+                    let targetBundle: String
+                    if isMax {
+                        targetBundle = "com.dts.freefiremax"
+                    } else {
+                        targetBundle = "com.dts.freefireind"  // FF India uses separate bundle
+                    }
                     _ = try DevicePatchService.apply(project: validProject, targetBundleID: targetBundle)
                     result = .applied
                 }
