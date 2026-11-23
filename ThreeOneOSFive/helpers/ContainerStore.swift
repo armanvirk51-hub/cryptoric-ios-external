@@ -74,12 +74,21 @@ enum ContainerStore {
         let detail = lookupError.map(String.init) ?? "unavailable"
         log("patch: MHA-C2 could not resolve \(bundleID), detail=\(detail)")
 
-        // Instant fallback for Free Fire variations:
+        // Instant fallback for Free Fire variations — covers all known bundle IDs across
+        // App Store regions, TestFlight, and alternate publisher accounts:
         let fallbackCandidates: [String]
-        if bundleID.contains("freefireind") || bundleID.contains("freefireth") {
-            fallbackCandidates = ["com.dts.freefireind", "com.dts.freefireth", "com.dts.freefirein", "com.garena.game.ffi"]
-        } else if bundleID.contains("freefiremax") {
-            fallbackCandidates = ["com.dts.freefiremax"]
+        if bundleID.contains("freefireind") || bundleID.contains("freefireth")
+            || bundleID.contains("freefirein") || bundleID == "com.garena.game.ffi" {
+            fallbackCandidates = [
+                "com.dts.freefireind", "com.garena.game.ffi",
+                "com.dts.freefireth",  "com.dts.freefirein",
+                "com.dts.freefiremax.in", "com.garena.game.ffin"
+            ]
+        } else if bundleID.contains("freefiremax") || bundleID == "com.garena.game.ffm" {
+            fallbackCandidates = [
+                "com.dts.freefiremax", "com.garena.game.ffm",
+                "com.dts.freefirethmax", "com.dts.freefiremaxin"
+            ]
         } else {
             fallbackCandidates = []
         }
@@ -99,8 +108,9 @@ enum ContainerStore {
             let lower = installedID.lowercased()
             let name = (info["name"] as? String ?? "").lowercased()
             let matches = bundleID.contains("max")
-                ? (lower.contains("freefiremax") || name.contains("free fire max"))
-                : ((lower.contains("freefire") || name.contains("free fire")) && !lower.contains("max") && !name.contains("max"))
+                ? (lower.contains("freefiremax") || lower.contains("ffm") || name.contains("free fire max"))
+                : ((lower.contains("freefire") || lower.contains("ffi") || name.contains("free fire"))
+                   && !lower.contains("max") && !name.contains("max"))
             if matches {
                 if let directContainer = info["container"] as? String,
                    !directContainer.isEmpty,
@@ -129,25 +139,54 @@ enum ContainerStore {
     }
 
     static func resolveAppContainerPathByMetadataScan(bundleID: String) -> String? {
-        // iOS 26+: full sandbox escape required for bad_query path.
-        // iOS < 26 (including 18.7+): always attempt the raw metadata scan —
-        // it only succeeds when the sandbox escape is active but costs nothing to try.
-        if KernelExploit.requiresSandboxEscape && !KernelExploit.hasSandboxAccess() {
-            log("patch: metadata scan skipped — sandbox escape not active (iOS 26+)")
-            return nil
+        // Try all candidate bundle IDs for Free Fire variants
+        let allCandidates: [String]
+        let lower = bundleID.lowercased()
+        if lower.contains("freefireind") || lower.contains("freefireth")
+            || lower.contains("freefirein") || bundleID == "com.garena.game.ffi" {
+            allCandidates = [bundleID, "com.dts.freefireind", "com.garena.game.ffi",
+                             "com.dts.freefireth", "com.dts.freefirein",
+                             "com.dts.freefiremax.in", "com.garena.game.ffin"]
+        } else if lower.contains("freefiremax") || bundleID == "com.garena.game.ffm" {
+            allCandidates = [bundleID, "com.dts.freefiremax", "com.garena.game.ffm",
+                             "com.dts.freefirethmax", "com.dts.freefiremaxin"]
+        } else {
+            allCandidates = [bundleID]
         }
-        let dirs = enumerateDirectories(path: appDataRoot)
-        guard !dirs.isEmpty else {
-            log("patch: metadata scan unavailable — no containers enumerated")
-            return nil
-        }
-        for dir in dirs {
-            guard UUID(uuidString: (dir as NSString).lastPathComponent) != nil else { continue }
-            guard let metadata = readContainerMetadata(containerPath: dir),
-                  metadata.bundleID == bundleID else { continue }
-            let canonical = ContainerDiscoveryMerger.canonicalPath(dir)
-            guard isApplicationContainerPath(canonical) else { continue }
-            return canonical
+        let candidateSet = Set(allCandidates)
+
+        // Try multiple container root paths — iOS 26+ may use alternate paths
+        let containerRoots = [
+            appDataRoot,                                    // /var/mobile/Containers/Data/Application
+            "/var/containers/Data/Application",            // alternate iOS 26+ path
+            "/private/var/mobile/Containers/Data/Application",
+            "/private/var/containers/Data/Application"
+        ]
+
+        for root in containerRoots {
+            // Try traversal grant first (iOS 26+), then plain enumerate
+            let grantedDirs = enumerateDirectoriesWithTraversalGrant(path: root)
+            let dirs = grantedDirs.isEmpty ? enumerateDirectories(path: root) : grantedDirs
+            guard !dirs.isEmpty else { continue }
+
+            for dir in dirs {
+                guard UUID(uuidString: (dir as NSString).lastPathComponent) != nil else { continue }
+                guard let metadata = readContainerMetadata(containerPath: dir) else { continue }
+                // Match any candidate bundle ID
+                guard candidateSet.contains(metadata.bundleID) else { continue }
+                let canonical = ContainerDiscoveryMerger.canonicalPath(dir)
+                guard isApplicationContainerPath(canonical) else {
+                    // Accept if it looks like any containers/data/application path
+                    let lc = canonical.lowercased()
+                    if lc.contains("/containers/data/application/") || lc.contains("/data/application/") {
+                        log("patch: metadata scan resolved (alt root) \(metadata.bundleID) -> \(canonical)")
+                        return canonical
+                    }
+                    continue
+                }
+                log("patch: metadata scan resolved \(metadata.bundleID) -> \(canonical)")
+                return canonical
+            }
         }
         return nil
     }
@@ -450,9 +489,19 @@ enum ContainerStore {
     }
 
     static func isApplicationContainerPath(_ path: String) -> Bool {
-        let canonicalRoot = ContainerDiscoveryMerger.canonicalPath(appDataRoot)
         let canonicalPath = ContainerDiscoveryMerger.canonicalPath(path)
-        guard canonicalPath.hasPrefix(canonicalRoot + "/") else { return false }
+        let lc = canonicalPath.lowercased()
+        // Accept any path that contains a containers/data/application segment
+        // This covers iOS 15–18 (/var/mobile/Containers/Data/Application),
+        // iOS 26+ (/var/containers/Data/Application), and /private/var/... variants.
+        let isValidRoot = lc.contains("/containers/data/application/")
+            || lc.contains("/data/application/")
+        guard isValidRoot else {
+            // Final fallback: check original canonical root
+            let canonicalRoot = ContainerDiscoveryMerger.canonicalPath(appDataRoot)
+            return canonicalPath.hasPrefix(canonicalRoot + "/")
+                && UUID(uuidString: (canonicalPath as NSString).lastPathComponent) != nil
+        }
         return UUID(uuidString: (canonicalPath as NSString).lastPathComponent) != nil
     }
 

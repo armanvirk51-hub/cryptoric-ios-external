@@ -198,7 +198,27 @@ enum PatchPackageLimits {
 }
 
 enum PatchPathValidator {
+    // Primary container root (iOS 15–18.x)
     private static let applicationRoot = "/private/var/mobile/Containers/Data/Application"
+    // Alternate container roots used on iOS 26+
+    private static let alternateApplicationRoots: [String] = [
+        "/private/var/containers/Data/Application",
+        "/var/containers/Data/Application",
+        "/var/mobile/Containers/Data/Application"
+    ]
+
+    /// Returns true if `path` resides under any known container root.
+    static func isKnownApplicationContainerRoot(_ path: String) -> Bool {
+        let p = canonicalFileURL(URL(fileURLWithPath: path)).path
+        if p.deletingLastPathComponent == applicationRoot { return true }
+        for alt in alternateApplicationRoots {
+            let canonical = canonicalFileURL(URL(fileURLWithPath: alt)).path
+            if p.deletingLastPathComponent == canonical { return true }
+        }
+        // Broad check: any path that sits inside /containers/data/application/
+        let lc = p.lowercased()
+        return lc.contains("/containers/data/application/") || lc.contains("/data/application/")
+    }
 
     static func canonicalBundleIdentifier(_ rawValue: String) throws -> String {
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -263,9 +283,15 @@ enum PatchPathValidator {
         let path = try canonicalRelativePath(relativePath)
         let root = canonicalFileURL(containerRoot)
 
-        guard root.deletingLastPathComponent().path == applicationRoot,
-              UUID(uuidString: root.lastPathComponent) != nil
-        else {
+        // Accept the primary root AND all iOS 26+ alternate roots.
+        // Safety: UUID component check ensures we're in a per-app UUID directory.
+        let parentPath = root.deletingLastPathComponent().path
+        let lc = parentPath.lowercased()
+        let isValidRoot = parentPath == applicationRoot
+            || alternateApplicationRoots.map({ canonicalFileURL(URL(fileURLWithPath: $0)).path }).contains(parentPath)
+            || lc.contains("/containers/data/application")
+            || lc.contains("/data/application")
+        guard isValidRoot, UUID(uuidString: root.lastPathComponent) != nil else {
             throw PatchPackageError.unsafeTargetPath
         }
 

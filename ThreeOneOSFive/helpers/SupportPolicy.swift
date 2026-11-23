@@ -28,21 +28,13 @@ enum ExploitSupportPolicy {
     /// Returns true if the kernel exploit path is available for this version.
     static func supportsKernelExploit(major: Int, minor: Int, patch: Int) -> Bool {
         guard minor >= 0, patch >= 0 else { return false }
-        // Accept iOS 15, 16, 17, 18 — any minor/patch
-        return major == 15 || major == 16 || major == 17 || major == 18
+        // Accept iOS 15 through 27+ (any minor/patch)
+        return major >= 15
     }
 
     /// Master gate: accept iOS 15 through 27+ (any build).
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
         guard major >= 15 else { return false }
-        // iOS 15, 16, 17, 18 — all versions supported
-        if major >= 15 && major <= 18 { return true }
-        // iOS 19–25 bridging (future-proof)
-        if major >= 19 && major <= 25 { return true }
-        // iOS 26 — all minor/patch
-        if major == 26 { return true }
-        // iOS 27 and beyond (beta or release) — all supported
-        if major >= 27 { return true }
-        return false
+        return true
     }
 }

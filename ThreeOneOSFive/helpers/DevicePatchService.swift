@@ -115,8 +115,17 @@ enum DevicePatchService {
         var roots: [String: URL] = [:]
 
         for bundleID in bundleIDs {
-            guard let path = ContainerStore.resolveAppContainerPath(bundleID: bundleID),
-                  ContainerStore.isApplicationContainerPath(path) else {
+            guard let path = ContainerStore.resolveAppContainerPath(bundleID: bundleID) else {
+                throw PatchPackageError.targetAppUnavailable(bundleID)
+            }
+            // Accept the path as long as it looks like a UUID container directory —
+            // this covers /var/mobile/Containers/Data/Application (iOS 15–18),
+            // /var/containers/Data/Application (iOS 26+), and /private/var/... variants.
+            let lc = path.lowercased()
+            let isValidContainer = ContainerStore.isApplicationContainerPath(path)
+                || lc.contains("/containers/data/application/")
+                || lc.contains("/data/application/")
+            guard isValidContainer else {
                 throw PatchPackageError.targetAppUnavailable(bundleID)
             }
             roots[bundleID] = PatchPathValidator.canonicalFileURL(URL(fileURLWithPath: path, isDirectory: true))
