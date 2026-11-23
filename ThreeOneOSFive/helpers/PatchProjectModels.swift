@@ -210,10 +210,12 @@ enum PatchPathValidator {
     /// Returns true if `path` resides under any known container root.
     static func isKnownApplicationContainerRoot(_ path: String) -> Bool {
         let p = canonicalFileURL(URL(fileURLWithPath: path)).path
-        if p.deletingLastPathComponent == applicationRoot { return true }
+        // Use NSString for path manipulation (String has no deletingLastPathComponent)
+        let parent = (p as NSString).deletingLastPathComponent
+        if parent == applicationRoot { return true }
         for alt in alternateApplicationRoots {
             let canonical = canonicalFileURL(URL(fileURLWithPath: alt)).path
-            if p.deletingLastPathComponent == canonical { return true }
+            if parent == canonical { return true }
         }
         // Broad check: any path that sits inside /containers/data/application/
         let lc = p.lowercased()
